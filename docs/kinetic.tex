@@ -1,0 +1,60 @@
+\documentclass[a4paper, 12pt]{article}
+\usepackage[margin=2cm]{geometry}
+\usepackage{mathtools}
+\usepackage{physics}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.8em}
+
+\begin{document}
+\section{Kinetic Energy and Kinetic part of the Action}
+NOTE: The period of the path is $T = \pi$.
+
+Define the action as
+$$ A = \int_0^\pi L dt = \int_0^\pi \left[ K - V \right] dt = \int_0^\pi K dt - \int_0^\pi V dt = A_K + A_V $$
+
+The velocity of a particle with respect to the rest frame is $v' =  v - \Omega x$, where $\Omega$ is the the generator of the rotation.
+
+Then, using non-symmetric bra-ket notation\footnote{$\braket{u}{v} \neq \braket{v}{u}$}, the Kinetic Energy of a single particle is
+\[ K = \frac 1 2m \braket{v} = \frac 1 2  m \left[ \underbrace{\braket{v}}_\text{Center of mass} + \underbrace{\braket{\Omega r}}_\text{Centrifugal} - \Big(\underbrace{\braket{\Omega r}{v} + \braket{v}{\Omega r}}_\text{Coriolis}\Big)\right]\]
+
+
+Define, then,
+\begin{align*}
+    K_\text{CM} &= \frac 1 2 m \braket{v} \\
+    K_\text{Cf} &= \frac 1 2 m \braket{\Omega r} \\
+    K_\text{Cor} &= -\frac 1 2 m \left(\braket{\Omega r}{v} + \braket{v}{\Omega r}\right)
+\end{align*}
+Consider nolw the representation of the path in terms of the Fourier coefficients $A_k$, and the velocity
+\begin{align*}
+    \ket{x(t)} &=\qty(1-\frac t \pi)\ket{x_0} + \frac t \pi \ket{x_1} + \sum_{k=1}^F \sin(kt) \ket{A_k}   \\
+    \ket{v(t)} &= \ket{\dot x(t)} = -\frac 1 \pi \ket{x_0} + \frac 1 \pi \ket{x_1} + \sum_{k=1}^F k  \cos(kt) \ket{A_k}
+\end{align*}
+
+To compute the action, we need to integrate $K$ and obtain the kinetic part of the action, $\mathcal K$. In particular, there are three different contributions:
+\vspace{0.5cm}
+
+\textbf{Center of mass contribution}
+   \begin{align*}
+    \mathcal K_\text{CM} &= \frac 1 2 m\int_0^\pi \braket{v} dt=\frac 1 2 m \qty[\frac 1 \pi\qty(\braket{x_0} +\braket{x_1} - \braket{x_1}{x_0} - \braket{x_0}{x_1}) + \frac \pi 2 \sum_{k=1}^F k^2\braket{A_k}{A_k}]
+   \end{align*}
+   \vspace{0.5cm}
+
+\textbf{Centrifugal contribution}
+    \begin{align*}
+    \mathcal K_\text{Cf} =& \frac 1 2 m\int_0^\pi \braket{\Omega x} dt = \frac 1 2 m \int_0^\pi\mel{x}{\Omega^\dagger \Omega }{x} \dd t  = -\frac 1 2 m \int_0^\pi \mel{x}{\Omega^2}{x} = \\
+    =& -\frac 1 2 m \Bigg\{ \frac\pi 3\qty[\mel{x_0}{\Omega^2}{x_0} + \mel{x_1}{\Omega^2}{x_1}] + \frac \pi 6 \qty[ \mel{x_0}{\Omega^2}{x_1} + \mel{x_1}{\Omega^2}{x_0} ]  + \\ &+\sum_{k=1}^F\Bigg[\frac 1 k \qty(\mel{x_0}{\Omega^2}{A_k} + \mel{A_k}{\Omega^2}{x_0}) + \frac{(-1)^k}{k}\qty(\mel{x_1}{\Omega^2}{A_k} + \mel{A_k}{\Omega^2}{x_1}) +  \frac \pi 2 \mel{A_k}{\Omega^2}{A_k}\Bigg] \Bigg\}
+   \end{align*}
+
+   \vspace{0.5cm}
+
+\textbf{Coriolis contribution}
+   \begin{align*}
+    \mathcal K_\text{Cor} =& \frac 1 2 m \int_0^\pi \qty(\braket{\Omega x}{v} + \braket{v}{\Omega x}) dt = \frac 1 2 m \int_0^\pi \qty(\mel{v}{\Omega}{x} - \mel{x}{\Omega}{v}) dt = \\
+    =& \frac 1 2 m \Bigg\{ \mel{x_0}{\Omega}{x_1} - \mel{x_1}{\Omega}{x_0}  + \frac{4}{\pi}\sum_{\substack{k=1\ldots F \\ k \text{ even}}}\frac 1 k\Big[ \mel{x_0}{\Omega}{A_k} - \mel{A_k}{\Omega}{x_0} - \mel{x_1}{\Omega}{A_k} + \mel{A_k}{\Omega}{x_1} \Big] + \\
+    &+\sum_{\substack{k,j = 1\ldots F \\ k+j \text{ even}}}\frac{k^2 + j^2}{k^2 - j^2} \mel{A_k}{\Omega}{A_j}\Bigg\}
+   \end{align*}
+
+
+\section{Potential and Potential part of the Action}
+
+\end{document}

@@ -1,0 +1,56 @@
+!!!======================================================================
+!!! generated configuration file
+!!!======================================================================
+0 !! action_type
+3 !! NOB
+3 !! dim
+1  !! sizekerT
+1 !! perm j=1
+2 !! perm j=2
+3 !! perm j=3
+1.0D0 !! matrix (j,k)=(1,1)
+0.0D0 !! matrix (j,k)=(1,2)
+0.0D0 !! matrix (j,k)=(1,3)
+0.0D0 !! matrix (j,k)=(2,1)
+1.0D0 !! matrix (j,k)=(2,2)
+0.0D0 !! matrix (j,k)=(2,3)
+0.0D0 !! matrix (j,k)=(3,1)
+0.0D0 !! matrix (j,k)=(3,2)
+1.0D0 !! matrix (j,k)=(3,3)
+3  !! cyclic_order
+2 !! cyclic_perm j=1
+3 !! cyclic_perm j=2
+1 !! cyclic_perm j=3
+1.0D0 !! cyclic_matrix (j,k)=(1,1)
+0.0D0 !! cyclic_matrix (j,k)=(1,2)
+0.0D0 !! cyclic_matrix (j,k)=(1,3)
+0.0D0 !! cyclic_matrix (j,k)=(2,1)
+1.0D0 !! cyclic_matrix (j,k)=(2,2)
+0.0D0 !! cyclic_matrix (j,k)=(2,3)
+0.0D0 !! cyclic_matrix (j,k)=(3,1)
+0.0D0 !! cyclic_matrix (j,k)=(3,2)
+1.0D0 !! cyclic_matrix (j,k)=(3,3)
+3 !! cyclic_perm j=1
+1 !! cyclic_perm j=2
+2 !! cyclic_perm j=3
+1.0D0 !! cyclic_matrix (j,k)=(1,1)
+0.0D0 !! cyclic_matrix (j,k)=(1,2)
+0.0D0 !! cyclic_matrix (j,k)=(1,3)
+0.0D0 !! cyclic_matrix (j,k)=(2,1)
+1.0D0 !! cyclic_matrix (j,k)=(2,2)
+0.0D0 !! cyclic_matrix (j,k)=(2,3)
+0.0D0 !! cyclic_matrix (j,k)=(3,1)
+0.0D0 !! cyclic_matrix (j,k)=(3,2)
+1.0D0 !! cyclic_matrix (j,k)=(3,3)
+1 !! cyclic_perm j=1
+2 !! cyclic_perm j=2
+3 !! cyclic_perm j=3
+1.0D0 !! cyclic_matrix (j,k)=(1,1)
+0.0D0 !! cyclic_matrix (j,k)=(1,2)
+0.0D0 !! cyclic_matrix (j,k)=(1,3)
+0.0D0 !! cyclic_matrix (j,k)=(2,1)
+1.0D0 !! cyclic_matrix (j,k)=(2,2)
+0.0D0 !! cyclic_matrix (j,k)=(2,3)
+0.0D0 !! cyclic_matrix (j,k)=(3,1)
+0.0D0 !! cyclic_matrix (j,k)=(3,2)
+1.0D0 !! cyclic_matrix (j,k)=(3,3)
