@@ -17,7 +17,7 @@ end
 
 
 function read_init(path::String)
-    global kerT, g, H_0, H_1, m, F, Ω, Ω2, α, steps, N, dim, action_type, cyclic_order, is_typeR
+    global kerT, g, H_0, H_1, m, F, Ω, Ω2, α, steps, N, dim, action_type, cyclic_order, is_typeR, isΩ
 
     # load GAP package
     GAP.Packages.load("$(@__DIR__)" * "/gap")
@@ -53,12 +53,10 @@ function read_init(path::String)
     println("g")
     g = perm_from_gap(minorb_elements[2])
     if action_type != Cyclic
-        println("H_0")
         H_0 = perm_from_gap([minorb_elements[3]])[1]
-        println(H_0)
-        println("H_1")
-        H_1 =  perm_from_gap([minorb_elements[4]])[1]
-        println(H_1)
+        H_1 = perm_from_gap([minorb_elements[4]])[1]
+        println("H₀ = \t", H_0)
+        println("H₁ = \t",H_1)
     else
         H_0, H_1 = G(), G()
     end
@@ -70,6 +68,7 @@ function read_init(path::String)
     α = 1.                  # Kepler exponent
     steps = 2 * F           # number of steps in the discretization of time [0,1]
     Ω = hcat(data["Omega"]...)
+    isΩ = !iszero(Ω)
     Ω2 = Ω * Ω
     @show Ω2
 end

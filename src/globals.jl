@@ -1,3 +1,5 @@
+
+
 Config = Vector{Vector{Float64}}
 
 Path = OffsetArray{Config}
@@ -5,6 +7,7 @@ Coefficients = OffsetArray{Config}
 
 Permutation = Vector{Int64}
 Rotation = Matrix{Float64}
+
 
 struct G
     σ::Permutation
@@ -26,6 +29,7 @@ action_type::ActionType = Cyclic
 cyclic_order::Int64 = 0
 dim_kerT::Int64 = 0
 kerT = G()
+isΩ::Bool = false
 g = []
 H_0 = G()
 H_1 = G()
@@ -48,13 +52,11 @@ end
 
 function emboss(v)
     Γ = Vector{Vector{Vector{Float64}}}(undef, F+2)
-    index = 1
     for k in 1:F+2
         Γ[k] = [zeros(dim) for _ in 1:N]
         for i in 1:N
             for j in 1:dim
-                Γ[k][i][j] = v[index]
-                index += 1
+                Γ[k][i][j] = v[(k-1)*N*dim + (i-1)*dim + j]
             end
         end
     end
@@ -65,3 +67,5 @@ end
 function flatten(Γ)
     return [((Γ...)...)...]
 end
+
+

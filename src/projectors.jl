@@ -47,7 +47,7 @@ end
         π_01( π_c(v), π_c(w) )
     end
 
-function project(A)
+function project(A::Coefficients)::Coefficients
     (A[0], A[F+1]) = π_a(A[0], A[F+1])
     A = π_kerT.(π_c.(A))
     return A

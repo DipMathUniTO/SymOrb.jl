@@ -1,6 +1,6 @@
-action(Γ)::Float64 =  kinetic(Γ) + potential(Γ)
+action(Γ)::Float64 = @timeit to "action" kinetic(Γ) + potential(Γ)
 
-kinetic(Γ) = K_linear(Γ) + K_centrifugal(Γ) + K_coriolis(Γ)
+kinetic(Γ) = if (isΩ)  K_linear(Γ) + K_centrifugal(Γ) + K_coriolis(Γ) else  K_linear(Γ) end
 
 function K_linear(Γ)
   K = 0
@@ -33,9 +33,7 @@ function K_coriolis(Γ)
         for k ∈ 1:F
             if isodd(k) continue end
             Ki += 4.0/(k*π) * (Γ[0][i]'*Ω*Γ[k][i] - Γ[k][i]'*Ω*Γ[0][i] - Γ[F+1][i]'*Ω*Γ[k][i] + Γ[k][i]'*Ω*Γ[F+1][i])
-        end
 
-        for k ∈ 1:F
             for j ∈ 1:F
                 if isodd(k + j) || k == j continue end
                 Ki += (k^2 + j^2)/(k^2 - j^2) * Γ[k][i]' * Γ[j][i]
@@ -60,7 +58,14 @@ end
 
 
 function v_action(v)
-    Γ = project(emboss(v))
+
+    @timeit to "emboss" begin
+        Γ = emboss(v)
+    end
+    Γ = project(Γ)
+    @timeit to "emboss" begin
+        v = flatten(Γ)
+    end
     return action(Γ)
 end
 
