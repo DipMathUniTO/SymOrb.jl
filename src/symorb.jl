@@ -4,17 +4,15 @@ using JSON
 using OffsetArrays
 using LinearAlgebra
 using Plots
-using ForwardDiff
-using Calculus
 using Optim
-using ForwardDiff
 using TimerOutputs
 
 const to = TimerOutput()
 
 include("globals.jl")
 include("initdata.jl")
-
+include("matrices.jl")
+include("minimization.jl")
 include("action.jl")
 include("projectors.jl")
 
@@ -23,16 +21,16 @@ export exec
 
 
 function exec(file)
-    global Ω
+    global Ω, K
     reset_timer!(to)
 
     read_init(file)
 
-    A = random_starting_path()
-    A = project(A)
+    A = (project ∘ random_starting_path)()
 
     results = path_minimize(A)
-
+    show(to)
+    cb(results)
     return
 end
 
@@ -57,11 +55,10 @@ end
 
 function cb(v)
     path = build_path((project ∘ emboss)(v))
-    pl  = plot(aspect_ratio=:equal)
+    pl = plot(aspect_ratio=:equal)
     for i in 1:N
-        plot!(pl, [[path[j][i][d] for j in 0:steps+1] for d in 1:dim]..., label="Body $i", markershape=:circle, aspect_ratio=:equal)
+        plot!(pl, [[path[j][i][d] for j in 0:steps+1] for d in 1:dim]..., label="Body $i", linewidth=3,  aspect_ratio=:equal)
     end
-
     display(plot(pl))
     return false
 end

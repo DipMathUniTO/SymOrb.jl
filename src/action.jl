@@ -1,80 +1,57 @@
 action(Γ)::Float64 = @timeit to "action" kinetic(Γ) + potential(Γ)
+∇action(Γ) = ∇kinetic(Γ) + ∇potential(Γ)
 
-kinetic(Γ) = if (isΩ)  K_linear(Γ) + K_centrifugal(Γ) + K_coriolis(Γ) else  K_linear(Γ) end
+kinetic(Γ) = 0.5 * Γ' * (K * Γ)
 
-function K_linear(Γ)
-  K = 0
-  for i ∈ 1:N
-    Ki = 1/π * (Γ[0][i] - Γ[F+1][i])' * (Γ[0][i] - Γ[F+1][i])
-    for k ∈ 1:F
-        Ki += π/2. * k^2 * Γ[k][i]' * Γ[k][i]
-    end
-    K += 0.5*m[i]*Ki
-  end
-  return K
-end
+∇kinetic(Γ) = K * Γ
 
-function K_centrifugal(Γ)
-    K = 0
-    for i ∈ 1:N
-        Ki = -π/3. * ( Γ[0][i] +  Γ[F+1][i])' * Ω2 *(Γ[0][i] +  Γ[F+1][i])
-        for k ∈ 1:F
-             Ki += 2.0/k * (Γ[0][i]' * Ω2 * Γ[k][i]  + (-1)^k * Γ[F+1][i]' * Ω2 * Γ[k][i]) +  π/2. * Γ[k][i]' * Ω2 * Γ[k][i]
-        end
-        K += 0.5*m[i]*Ki
-    end
-    return K
-end
 
-function K_coriolis(Γ)
-    K = 0
-    for i ∈ 1:N
-        Ki = Γ[0][i]' * Ω * Γ[F+1][i] - Γ[F+1][i]' * Ω * Γ[0][i]
-        for k ∈ 1:F
-            if isodd(k) continue end
-            Ki += 4.0/(k*π) * (Γ[0][i]'*Ω*Γ[k][i] - Γ[k][i]'*Ω*Γ[0][i] - Γ[F+1][i]'*Ω*Γ[k][i] + Γ[k][i]'*Ω*Γ[F+1][i])
+v_action(v) = (action ∘ project ∘ emboss)(v)
 
-            for j ∈ 1:F
-                if isodd(k + j) || k == j continue end
-                Ki += (k^2 + j^2)/(k^2 - j^2) * Γ[k][i]' * Γ[j][i]
-            end
-        end
-        K += 0.5*m[i]*Ki
-    end
-    return K
-end
+v_∇action(v) = (flatten ∘ project ∘ ∇action ∘ emboss)(v)
 
-function potential(Γ)
+
+
+potential(Γ) = begin
+
     x = build_path(Γ)
 
     V = 0
-    for i ∈ 1:N-1
-        for j ∈ (i+1):N
-            V += sum(m[i]*m[j] / norm(x[t][i] - x[t][j]) for t ∈ 0:steps+1)
-        end
+    for i ∈ 1:N-1, j ∈ (i+1):N
+        V += sum(m[i] * m[j] / norm(x[h][i] - x[h][j]) for h ∈ 0:steps+1)
     end
     return V
 end
 
 
-function v_action(v)
+∇U(Γ) = begin
+    x = build_path(Γ)
 
-    @timeit to "emboss" begin
-        Γ = emboss(v)
+    ∇V =OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 1:steps+2], 0:steps+1)
+
+    for h ∈ 0:steps+1, i ∈ 1:N-1, j ∈ (i+1):N
+        r = x[h][i] - x[h][j]
+        ∇V_ij = -m[i] * m[j] * r / norm(r)^3
+        ∇V[h][i] += ∇V_ij
+        ∇V[h][j] -= ∇V_ij
     end
-    Γ = project(Γ)
-    @timeit to "emboss" begin
-        v = flatten(Γ)
-    end
-    return action(Γ)
+    return ∇V
 end
 
 
+∇potential(Γ) = begin
+    ∇V = ∇U(Γ)
 
-∫sin(k) =(1-(-1)^k) / k
-∫tsin(k) = -pi*(-1)^k / k
-∫tcos(k) = (-1 + (-1)^k) / k^2
-∫coscos(k, h) = ifelse(h == k, pi / 2, 0)
-∫sinsin(k, h) = ifelse(h == k, pi / 2, 0)
-∫sincos(k, h) = ifelse(h == k, 0, k / (k^2 - h^2) * (1 - (-1)^(k + h)))
+    ∇potential = OffsetArray([[zeros(dim) for _ in 1:N] for _ in 1:F+2], 0:F+1)
+
+    for h ∈ 0:steps+1
+        ∇potential[0] += ∇V[h] * (1 - h / (steps + 1))
+        ∇potential[F+1] += ∇V[h] * (h / (steps + 1))
+        ∇potential[1:F] .+= [∇V[h] * sin(π * k * h / (steps + 1)) for k ∈ 1:F]
+    end
+
+    #∇potential[0] = ∇potential[0] + ∇V[0]/ 2
+    #∇potential[F+1] = ∇potential[F+1] + ∇V[F+1] / 2
+    return ∇potential
+end
 

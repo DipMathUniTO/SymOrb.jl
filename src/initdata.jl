@@ -10,14 +10,13 @@ function perm_from_gap(mat)
         perm::Vector =  g2j(@gap Permuted([1 .. NOB], tuple[2]^(-1)))
         matrix::Matrix = hcat(g2j(@gap tuple[1])...)
         push!(gs, G(perm, matrix))
-       # @gap Unbind(tuple)
     end
     return gs
 end
 
 
 function read_init(path::String)
-    global kerT, g, H_0, H_1, m, F, Ω, Ω2, α, steps, N, dim, action_type, cyclic_order, is_typeR, isΩ
+    global kerT, g, H_0, H_1, m, F, Ω, Ω2, α, steps, N, dim, action_type, cyclic_order, is_typeR, isΩ, K
 
     # load GAP package
     GAP.Packages.load("$(@__DIR__)" * "/gap")
@@ -70,6 +69,12 @@ function read_init(path::String)
     Ω = hcat(data["Omega"]...)
     isΩ = !iszero(Ω)
     Ω2 = Ω * Ω
-    @show Ω2
+
+        K = if (isΩ)
+        K_linear() + spatial_mult(Ω2, K_centrifugal()) + spatial_mult(Ω, K_coriolis())
+    else
+        K_linear()
+    end
+
 end
 
