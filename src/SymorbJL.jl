@@ -19,6 +19,7 @@ export symorb_minimize
 function symorb_minimize(config::AbstractDict)
     global Ω, K
 
+    println("--- SymorbJL ---")
     LGS_from_config(config)
 
 
