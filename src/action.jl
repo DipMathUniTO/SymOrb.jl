@@ -1,21 +1,15 @@
-action(Γ)::Float64 = @timeit to "action" kinetic(Γ) + potential(Γ)
-∇action(Γ) = ∇kinetic(Γ) + ∇potential(Γ)
+_action(Γ)::Float64 = kinetic(Γ) + potential(Γ)
+_∇action(Γ) = ∇kinetic(Γ) + ∇potential(Γ)
 
 kinetic(Γ) = 0.5 * Γ' * (K * Γ)
-
 ∇kinetic(Γ) = K * Γ
 
 
-v_action(v) = (action ∘ project ∘ emboss)(v)
-
-v_∇action(v) = (flatten ∘ project ∘ ∇action ∘ emboss)(v)
-
-
+action(v) = (_action ∘ project ∘ emboss)(v)
+∇action(v) = (flatten ∘ project ∘ _∇action ∘ emboss)(v)
 
 potential(Γ) = begin
-
     x = build_path(Γ)
-
     V = 0
     for i ∈ 1:N-1, j ∈ (i+1):N
         V += sum(m[i] * m[j] / norm(x[h][i] - x[h][j]) for h ∈ 0:steps+1)
@@ -50,8 +44,6 @@ end
         ∇potential[1:F] .+= [∇V[h] * sin(π * k * h / (steps + 1)) for k ∈ 1:F]
     end
 
-    #∇potential[0] = ∇potential[0] + ∇V[0]/ 2
-    #∇potential[F+1] = ∇potential[F+1] + ∇V[F+1] / 2
     return ∇potential
 end
 

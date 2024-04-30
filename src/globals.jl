@@ -2,11 +2,11 @@
 
 Config = Vector{Vector{Float64}}
 
-Path = OffsetArray{Config}
-Coefficients = OffsetArray{Config}
+Path = OffsetVector{Config}
+Coefficients = OffsetVector{Config}
 
 Permutation = Vector{Int64}
-Rotation = Matrix{Float64}
+Rotation = Matrix
 
 
 struct G
@@ -23,52 +23,39 @@ end
 G() = G(Permutation([]), Rotation(undef, 0, 0))
 
 
+Base.@kwdef struct SymorbConfig
+    N::Int64
+    dim::Int64
+    action_type::Int64
+    kerT::String
+    rotV::Matrix
+    rotS::String
+    refV::Matrix
+    refS::String
+    Omega::Matrix
+end
+
+
+
 N::Int64 = 0
 dim::Int64 = 0
 action_type::ActionType = Cyclic
 cyclic_order::Int64 = 0
 dim_kerT::Int64 = 0
-kerT = G()
+kerT::Union{G, Vector{G}} = G()
 isΩ::Bool = false
-g = []
-H_0 = G()
-H_1 = G()
-m = []
+g::Vector{G} = []
+H_0::G = G()
+H_1::G = G()
+m::Vector{Float64} = []
 
 Ω::Matrix{Float64} = Matrix(undef, 0, 0)
+
 K::OffsetMatrix{Float64} = Matrix(undef, 0, 0)
 
 
-fourier_series(A::Coefficients)::Path = [sum(A[k]*sin(π*k*h/(steps+1)) for k in 1:F) for h in 0:steps+1]
 
-inverse_fourier(A::Path)::Coefficients = [sum(A[h] * sin(π * k * h / (steps + 1)) for h in 1:steps) for k in 0:F+1]
-segment(a,b) = [a + k * (b - a) / (steps+1)  for k ∈ 0:steps+1]
-
-
-
-function build_path(A::Coefficients)::Path
-    y = segment(A[0], A[F+1]) + fourier_series(A)
-    return OffsetArrays.Origin(0)(y)
-end
-
-
-function emboss(v::Vector{T}) where T
-    Γ = OffsetArray([[zeros(T, dim) for i ∈ 1:N] for k ∈0:F+1], 0:F+1)
-
-    for j in 1:dim,  i in 1:N, k in 0:F+1
-        Γ[k][i][j] = v[k*N*dim + (i-1)*dim + j]
-    end
-
-    return Γ
-end
-
-function flatten(Γ::OffsetVector{Vector{Vector{T}}}) where {T}
-    return [((Γ...)...)...]
-end
-
-
-function Base.:*(M::OffsetMatrix{T}, v::OffsetVector{Vector{Vector{T}}}) where {T}
-    result = OffsetVector{Vector{Vector{T}}}(undef, axes(v,1))
+function Base.:*(M::OffsetMatrix{T}, v::Coefficients)::Coefficients where {T}
     result = [[zeros(T, length(v[j][1])) for _ in 1:length(v[j])] for j in axes(v,1)]
 
     for j ∈ axes(M, 1), k ∈ axes(M, 2), i ∈ 1:length(v[j])
@@ -77,7 +64,7 @@ function Base.:*(M::OffsetMatrix{T}, v::OffsetVector{Vector{Vector{T}}}) where {
     return result
 end
 
-function Base.:*(v::OffsetMatrix{Vector{Vector{T}}}, w::OffsetVector{Vector{Vector{T}}}) where {T}
+function Base.:*(v::OffsetMatrix{Config}, w::Coefficients):Coefficients
     result = zero(T)
 
     for j ∈ axes(v, 2), k ∈ axes(w, 1),i ∈ 1:length(v[j])
@@ -88,6 +75,6 @@ function Base.:*(v::OffsetMatrix{Vector{Vector{T}}}, w::OffsetVector{Vector{Vect
 end
 
 
-function spatial_mult(M::Matrix{T}, v::OffsetVector{Vector{Vector{T}}}) where {T}
+function spatial_mult(M::Matrix{T}, v::Config) where {T}
     return [[M * v[i][j] for j in axes(v[i],1)] for i in axes(v,1)]
 end

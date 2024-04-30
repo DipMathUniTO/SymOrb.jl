@@ -13,20 +13,14 @@ function K_linear()
 end
 
 
-##moltiplica per Ω2
 function K_centrifugal()
     K = OffsetArray(zeros(F + 2, F + 2), 0:F+1, 0:F+1)
 
-    K[0, 0] = -π / 3.0
-    K[F+1, F+1] = -π / 3
-    K[F+1, 0] = -π / 3
-    K[0, F+1] = -π / 3
+    K[0, 0], K[F+1, F+1], K[F+1, 0], K[0, F+1]= -π / 3.0
 
     for k ∈ 1:F
-        K[0, k] = 1.0 / k
-        K[k, 0] = 1.0 / k
-        K[F+1, k] = 1.0 / k * (-1)^k
-        K[k, F+1] = 1.0 / k * (-1)^k
+        K[0, k], K[k, 0] = 1.0 / k
+        K[F+1, k], K[k, F+1]  = 1.0 / k * (-1)^k
         K[k, k] = π / 2.0
     end
 
@@ -55,13 +49,6 @@ function K_coriolis()
 
     return K
 end
-
-
-
-
-
-
-
 
 
 ∫sin(k) = (1 - (-1)^k) / k

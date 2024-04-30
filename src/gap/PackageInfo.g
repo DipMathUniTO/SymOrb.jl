@@ -4,6 +4,7 @@ PackageName := "SymOrb",
 Subtitle := "Minimizing orbits",
 Version := "0.92",
 Date := "15/11/2022",
+License := "GPL-3.0",
 ArchiveURL :=
           "http://localhost",
 ArchiveFormats := ".tgz",

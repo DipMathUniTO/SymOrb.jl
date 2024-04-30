@@ -1,10 +1,10 @@
-name = "symorb"
+name = "SymorbJL"
 uuid = "342ca686-5476-4651-a9b9-f19fc25398e9"
 version = "0.1.0"
 
 [deps]
 GAP = "c863536a-3901-11e9-33e7-d5cd0df7b904"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
