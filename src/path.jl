@@ -45,3 +45,16 @@ function circular_starting_path()::OffsetArray
     end
     return OffsetArrays.Origin(0)(inverse_fourier(A))
 end
+
+
+
+function path_from_minimizer(v::Vector{T})::OffsetArray where {T}
+    path = (build_path ∘ project ∘ emboss)(v)
+    return [ [[path[i][j][k] for k in 1:dim] for i in 1:steps ] for j in 1:N ]
+end
+
+
+function coeff_from_minimizer(v::Vector{T})::OffsetArray where {T}
+    path = (project ∘ emboss)(v)
+    return [ [[path[i][j][k] for k in 1:dim] for i in 1:F ] for j in 1:N ]
+end

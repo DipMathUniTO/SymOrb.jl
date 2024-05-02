@@ -20,6 +20,13 @@ end
     Brake = 2
 end
 
+Base.@kwdef struct MinimizationResult
+    minimizer::Path
+    iterations::Int64
+    action_value::Float64
+    gradient_value::Float64
+end
+
 G() = G(Permutation([]), Rotation(undef, 0, 0))
 
 
@@ -48,6 +55,12 @@ g::Vector{G} = []
 H_0::G = G()
 H_1::G = G()
 m::Vector{Float64} = []
+iterations::Int64 = 0
+action_grad::Float64 = 0.0
+action_value::Float64 = 0.0
+trajectory::Path = []
+group_order::Int64 = 0
+fourier_coeff::Coefficients = []
 
 Ω::Matrix{Float64} = Matrix(undef, 0, 0)
 
