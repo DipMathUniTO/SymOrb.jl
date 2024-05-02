@@ -33,9 +33,9 @@ function LGS_from_config(data::AbstractDict)
         kern = GapObj(data["kern"], recursive=true)
     end
 
-    rotV = GapObj(data["rotV"], recursive=true)
+    rotV = GAP.evalstr(data["rotV"])
     rotS = GAP.evalstr(data["rotS"])
-    refV = GapObj(data["refV"], recursive=true)
+    refV = GAP.evalstr(data["refV"])
     refS = GAP.evalstr(data["refS"])
 
     GG.dim, GG.NOB, GG.kern, GG.rotV, GG.rotS, GG.refV, GG.refS = dim, N, kern, rotV, rotS, refV, refS
