@@ -20,8 +20,10 @@ function symorb_minimize(config::AbstractDict)
     global Ω, K
 
     println("--- SymorbJL ---")
+    println(">> Generating LGS...")
     LGS_from_config(config)
 
+    println(">> Minimizing...")
 
     Γ = (project ∘ random_starting_path)()
     v = flatten(Γ)
