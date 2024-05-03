@@ -4,7 +4,6 @@ _∇action(Γ) = ∇kinetic(Γ) + ∇potential(Γ)
 kinetic(Γ) = 0.5 * Γ' * (K * Γ)
 ∇kinetic(Γ) = K * Γ
 
-
 action(v) = (_action ∘ project ∘ emboss)(v)
 ∇action(v) = (flatten ∘ project ∘ _∇action ∘ emboss)(v)
 

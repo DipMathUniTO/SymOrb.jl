@@ -1,4 +1,4 @@
-
+using Base: @kwdef
 
 Config = Vector{Vector{Float64}}
 
@@ -20,17 +20,38 @@ end
     Brake = 2
 end
 
-Base.@kwdef struct MinimizationResult
-    minimizer::Path
-    iterations::Int64
-    action_value::Float64
-    gradient_value::Float64
+
+
+@kwdef struct MinimizationOptions
+    g_tol::Float64 = 1e-8
+    show_trace::Bool = false
+    extended_trace::Bool = true
+    callback::Function = x -> false
 end
+
+MinimizationOptions(options::Optim.Options) = MinimizationOptions(
+    g_tol = options.g_abstol, 
+    show_trace = options.show_trace,
+    extended_trace = options.extended_trace,
+    callback = options.callback)
 
 G() = G(Permutation([]), Rotation(undef, 0, 0))
 
 
-Base.@kwdef struct SymorbConfig
+@kwdef struct MinimizationResult
+   fourier_coeff::Coefficients
+   trajectory::Path
+   iterations::Int64
+   gradient_norm::Float64
+   action_value::Float64
+   converged::Bool
+   initial::Coefficients
+   minimization_method::Symbol
+   minimization_options::MinimizationOptions
+end
+
+
+@kwdef struct SymorbConfig
     N::Int64
     dim::Int64
     action_type::Int64
@@ -55,12 +76,7 @@ g::Vector{G} = []
 H_0::G = G()
 H_1::G = G()
 m::Vector{Float64} = []
-iterations::Int64 = 0
-action_grad::Float64 = 0.0
-action_value::Float64 = 0.0
-trajectory::Path = []
-group_order::Int64 = 0
-fourier_coeff::Coefficients = []
+
 
 Ω::Matrix{Float64} = Matrix(undef, 0, 0)
 

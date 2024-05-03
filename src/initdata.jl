@@ -61,7 +61,6 @@ function LGS_from_config(data::AbstractDict)
 
     m = data["m"]              # the masses
     F = data["F"]              # number of Fourier series terms
-    α = 1.                  # Kepler exponent
     steps = 2 * F           # number of steps in the discretization of time [0,1]
     Ω = hcat(data["Omega"]...)
     isΩ = !iszero(Ω)
@@ -71,5 +70,6 @@ function LGS_from_config(data::AbstractDict)
         K +=  spatial_mult(Ω2, K_centrifugal()) + spatial_mult(Ω, K_coriolis())
     end
 
+    return 
 end
 
