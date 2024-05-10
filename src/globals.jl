@@ -72,6 +72,7 @@ cyclic_order::Int64 = 0
 dim_kerT::Int64 = 0
 kerT::Union{G, Vector{G}} = G()
 isΩ::Bool = false
+dt::Float64 = 0
 g::Vector{G} = []
 H_0::G = G()
 H_1::G = G()
@@ -85,7 +86,7 @@ K::OffsetMatrix{Float64} = Matrix(undef, 0, 0)
 
 
 function Base.:*(M::OffsetMatrix{T}, v::Coefficients)::Coefficients where {T}
-    result = [[zeros(T, length(v[j][1])) for _ in 1:length(v[j])] for j in axes(v,1)]
+    result = [[zeros(T, length(v[j][1])) for _ ∈ 1:length(v[j])] for j ∈ axes(v,1)]
 
     for j ∈ axes(M, 1), k ∈ axes(M, 2), i ∈ 1:length(v[j])
         result[j][i] += m[i] * M[j, k]  * v[k][i]
@@ -105,5 +106,5 @@ end
 
 
 function spatial_mult(M::Matrix{T}, v::Config) where {T}
-    return [[M * v[i][j] for j in axes(v[i],1)] for i in axes(v,1)]
+    return [[M * v[i][j] for j ∈ axes(v[i],1)] for i ∈ axes(v,1)]
 end

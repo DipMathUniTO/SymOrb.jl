@@ -16,19 +16,19 @@
 
 # Projection onto the center of mass
 π_c(v::Config)::Config =  begin
-    xc = sum(m[i] * v[i] for i in axes(m, 1)) / sum(m)
+    xc = sum(m[i] * v[i] for i ∈ axes(m, 1)) / sum(m)
 
-    return [v[i] - xc for i in axes(m,1)]
+    return [v[i] - xc for i ∈ axes(m,1)]
 end
 
 
 # action of h ∈ H on v ∈ ℝᵈ
 ϕ(h::G, v::Config)::Config =
-    [h.M * v[h.σ[i]] for i in axes(h.σ, 1)]
+    [h.M * v[h.σ[i]] for i ∈ axes(h.σ, 1)]
 
 # Projection onto the subspace spanned by the action of H on v
 π_H(H::Vector{G}, v::Config)::Config =
-    sum(ϕ(H[i], v) for i in axes(H, 1)) / length(H)
+    sum(ϕ(H[i], v) for i ∈ axes(H, 1)) / length(H)
 
 # Projection onto ker_T
 π_kerT(v::Config)::Config = π_H(kerT, v)

@@ -5,7 +5,7 @@ g2j = GAP.gap_to_julia
 
 function perm_from_gap(mat)
     gs = Vector{G}()
-    for el in mat
+    for el ∈ mat
         GG.tuple = GapObj(el)
         perm::Vector =  g2j(@gap Permuted([1 .. NOB], tuple[2]^(-1)))
         matrix::Matrix = hcat(g2j(@gap tuple[1])...)
@@ -16,7 +16,7 @@ end
 
 
 function LGS_from_config(data::AbstractDict)
-    global kerT, g, H_0, H_1, m, F, Ω, Ω2, α, steps, N, dim, action_type, cyclic_order, is_typeR, isΩ, K
+    global kerT, g, H_0, H_1, m, F, Ω, Ω2, dt, α, steps, N, dim, action_type, cyclic_order, is_typeR, isΩ, K
 
     # load GAP package
     GAP.Packages.load("$(@__DIR__)" * "/gap")
@@ -41,13 +41,9 @@ function LGS_from_config(data::AbstractDict)
     GG.dim, GG.NOB, GG.kern, GG.rotV, GG.rotS, GG.refV, GG.refS = dim, N, kern, rotV, rotS, refV, refS
 
     GG.LSG = GG.LagSymmetryGroup(at, N, kern, rotV, rotS, refV, refS)
-
     minorb_elements = g2j(GG.MinorbInitElements(GG.LSG), recursive=false)
-
     is_typeR =  if dim==3 GG.IsTypeR(GG.LSG) else false end
-
     kerT = perm_from_gap(minorb_elements[1])
-
     g = perm_from_gap(minorb_elements[2])
 
     if action_type != Cyclic
@@ -62,6 +58,7 @@ function LGS_from_config(data::AbstractDict)
     m = data["m"]              # the masses
     F = data["F"]              # number of Fourier series terms
     steps = 2 * F           # number of steps in the discretization of time [0,1]
+    dt = π / (steps+1)      # time step
     Ω = hcat(data["Omega"]...)
     isΩ = !iszero(Ω)
     Ω2 = Ω * Ω

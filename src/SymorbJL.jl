@@ -4,6 +4,7 @@ using GAP
 using OffsetArrays
 using Optim
 using LinearAlgebra
+using Plots
 
 include("globals.jl")
 include("path.jl")
@@ -17,7 +18,7 @@ export symorb_minimize
 
 check_convergence(res)::Bool = res.iteration_converged ||  res.x_converged || res.f_converged || res.g_converged
 
-function symorb_minimize(config::AbstractDict)
+function symorb_minimize(config::AbstractDict; show_infos = false)
 
     LGS_from_config(config)
 
@@ -29,10 +30,10 @@ function symorb_minimize(config::AbstractDict)
     method = :BFGS
     method_callable = getfield(Optim, method)
 
-    show_infos = false
 
     options = Optim.Options(
         g_tol = 1e-8,
+        iterations = Int(1e5),
         show_trace = false,
         extended_trace = true,
         callback = x -> begin
@@ -45,10 +46,10 @@ function symorb_minimize(config::AbstractDict)
 
     res = Optim.optimize(action, ∇action, v, method_callable(), options; inplace=false)
      
-
+    minimizer = (project ∘ emboss)(res.minimizer)
     return MinimizationResult( 
-        fourier_coeff = coeff_from_minimizer(res.minimizer),
-        trajectory = path_from_minimizer(res.minimizer),
+        fourier_coeff = minimizer,
+        trajectory = build_path(minimizer),
         iterations =  res.iterations,
         action_value =  res.minimum,
         gradient_norm = res.g_residual,
@@ -56,10 +57,19 @@ function symorb_minimize(config::AbstractDict)
         initial = starting_path,
         minimization_method = method,  
         minimization_options = MinimizationOptions(options)    
-    )
+    );
 
 end
 
+
+function plot_path(path)
+    pl = plot(aspect_ratio=:equal)
+    for i ∈ 1:N
+        plot!(pl, [[path[j][i][h] for j ∈ 0:steps+1] for h ∈ 1:dim]..., label="Body $i", linewidth=3,  aspect_ratio=:equal)
+    end
+    display(plot(pl))
+    return false
+end
 
 
 

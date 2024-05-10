@@ -13,14 +13,15 @@ potential(Γ) = begin
     for i ∈ 1:N-1, j ∈ (i+1):N
         V += sum(m[i] * m[j] / norm(x[h][i] - x[h][j]) for h ∈ 0:steps+1)
     end
-    return V
+
+    return V * dt
 end
 
 
 ∇U(Γ) = begin
     x = build_path(Γ)
 
-    ∇V =OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 1:steps+2], 0:steps+1)
+    ∇V = OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 1:steps+2], 0:steps+1)
 
     for h ∈ 0:steps+1, i ∈ 1:N-1, j ∈ (i+1):N
         r = x[h][i] - x[h][j]
@@ -28,21 +29,22 @@ end
         ∇V[h][i] += ∇V_ij
         ∇V[h][j] -= ∇V_ij
     end
-    return ∇V
+
+    return ∇V 
 end
 
 
 ∇potential(Γ) = begin
+    ∇potential = OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 1:F+2], 0:F+1)
+    
     ∇V = ∇U(Γ)
 
-    ∇potential = OffsetArray([[zeros(dim) for _ in 1:N] for _ in 1:F+2], 0:F+1)
-
     for h ∈ 0:steps+1
-        ∇potential[0] += ∇V[h] * (1 - h / (steps + 1))
-        ∇potential[F+1] += ∇V[h] * (h / (steps + 1))
-        ∇potential[1:F] .+= [∇V[h] * sin(π * k * h / (steps + 1)) for k ∈ 1:F]
+        ∇potential[0]    += ∇V[h] * (1 - h * dt / π)
+        ∇potential[F+1]  += ∇V[h] * (h * dt / π)
+        ∇potential[1:F] .+= [∇V[h] * sin(k * h * dt) for k ∈ 1:F]
     end
 
-    return ∇potential
+    return ∇potential * dt
 end
 
