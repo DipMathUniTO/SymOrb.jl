@@ -1,4 +1,4 @@
-module SymorbJL
+module MinPathJL
 
 using GAP, OffsetArrays, Optim, LinearAlgebra, Plots, NLsolve
 
@@ -9,12 +9,12 @@ include("matrices.jl")
 include("action.jl")
 include("projectors.jl")
 
-export symorb_minimize, plot_path 
+export minimize, plot_path 
 
 check_convergence(res::Optim.OptimizationResults)::Bool = res.iteration_converged ||  res.x_converged || res.f_converged || res.g_converged
 check_convergence(res::NLsolve.SolverResults)::Bool = res.x_converged || res.f_converged 
 
-function symorb_minimize(config::AbstractDict, method=:BFGS; 
+function minimize(config::AbstractDict, method=:BFGS; 
                     iter_max=Int(1e4),
                     starting_path_type = nothing,
                     starting_path = nothing, 
