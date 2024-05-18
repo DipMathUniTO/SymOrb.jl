@@ -15,8 +15,8 @@ function perm_from_gap(mat)
 end
 
 
-function LGS_from_config(data::AbstractDict)
-    global kerT, g, H_0, H_1, m, F, Ω, Ω2, dt, α, steps, N, dim, action_type, cyclic_order, is_typeR, isΩ, K
+function LSG_from_config(data::AbstractDict)
+    global kerT, g, H_0, H_1, m, F, Ω, Ω2, dt, α, Id, steps, N, dim, action_type, cyclic_order, is_typeR, K, dx_dAk
 
     # load GAP package
     GAP.Packages.load("$(@__DIR__)" * "/gap")
@@ -60,11 +60,16 @@ function LGS_from_config(data::AbstractDict)
     steps = 2 * F           # number of steps in the discretization of time [0,1]
     dt = π / (steps+1)      # time step
     Ω = hcat(data["Omega"]...)
-    isΩ = !iszero(Ω)
+
     Ω2 = Ω * Ω
+    dx_dAk = compute_dx_dAk()
+    
+    Id = [if i == j I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N]
+
     K = K_linear()
-    if (isΩ)
-        K +=  spatial_mult(Ω2, K_centrifugal()) + spatial_mult(Ω, K_coriolis())
+    
+    if (!iszero(Ω))
+        K +=  Ω2 * K_centrifugal() + Ω * K_coriolis()
     end
 
     return 

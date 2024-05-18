@@ -78,18 +78,19 @@ H_0::G = G()
 H_1::G = G()
 m::Vector{Float64} = []
 
-
 Ω::Matrix{Float64} = Matrix(undef, 0, 0)
 
-K::OffsetMatrix{Float64} = Matrix(undef, 0, 0)
+K::OffsetMatrix = Matrix(undef, 0, 0)
+Id = Matrix(undef, 0,0)
+
+dx_dAk::OffsetVector = Vector(undef, 0)
 
 
-
-function Base.:*(M::OffsetMatrix{T}, v::Coefficients)::Coefficients where {T}
+function Base.:*(M::OffsetMatrix{Matrix{Matrix{T}}}, v::Coefficients)::Coefficients where {T}
     result = [[zeros(T, length(v[j][1])) for _ ∈ 1:length(v[j])] for j ∈ axes(v,1)]
 
-    for j ∈ axes(M, 1), k ∈ axes(M, 2), i ∈ 1:length(v[j])
-        result[j][i] += m[i] * M[j, k]  * v[k][i]
+    for h ∈ axes(M, 1), k ∈ axes(M, 2), i ∈ 1:length(v[1]), j ∈ 1:length(v[1])
+        result[h][j] +=  M[h, k][i, j]  * v[k][i]
     end
     return result
 end
@@ -104,7 +105,6 @@ function Base.:*(v::OffsetMatrix{Config}, w::Coefficients):Coefficients
     return result
 end
 
-
-function spatial_mult(M::Matrix{T}, v::Config) where {T}
+function Base.:*(M::Matrix, v::Config)
     return [[M * v[i][j] for j ∈ axes(v[i],1)] for i ∈ axes(v,1)]
 end

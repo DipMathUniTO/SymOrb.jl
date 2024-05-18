@@ -53,3 +53,17 @@ function project(A::Coefficients)::Coefficients
     return A
 end
 
+
+function project(H::OffsetMatrix)::OffsetMatrix
+
+    for k ∈ 0:F+1, i ∈ 1:N, d ∈ 1:dim
+        slice = OffsetArrays.Origin(0)([[[ H[k1,k][i1,i][d1,d] for d1 ∈ 1:dim] for i1 ∈ 1:N ] for k1 ∈ 0:F+1])
+        slice = project(slice)
+        for k1 ∈ 0:F+1, i1 ∈ 1:N
+            H[k1,k][i1,i][:, d] = slice[k1][i1]
+            H[k,k1][i,i1][d, :] = slice[k1][i1]
+        end    
+    end
+
+    return H
+end
