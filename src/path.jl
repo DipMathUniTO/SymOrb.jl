@@ -85,3 +85,69 @@ function circular_starting_path()::OffsetArray
     plot_path(x)
     return OffsetArrays.Origin(0)(A)
 end
+
+
+
+function reconstruct_path(x::Path)
+    cyclic_x = OffsetArray([[zeros(dim) for i ∈ 1:N] for j ∈ 0:(2*steps+1)], 0:(2*steps+1))
+    
+    cyclic_x[0:steps+1] = copy(x[0:steps+1])
+
+    max_index = if action_type == Cyclic 
+        steps+1
+    else 
+        2*steps +1
+    end
+
+
+    if action_type != Cyclic
+        for k ∈ 0:steps
+            cyclic_x[steps + k + 1] = ϕ(H_1, cyclic_x[steps - k + 1])     
+        end
+    end
+    
+    #plot_path(cyclic_x)
+    #return cyclic_x
+    
+
+    reconstructed_x = OffsetArrays.Origin(0)([])
+
+    for j ∈ 1:cyclic_order, k ∈ 0:max_index
+        push!(reconstructed_x, ϕg_n(cyclic_x[k], j))
+    end 
+    push!(reconstructed_x, ϕg_n(cyclic_x[0], 1))
+
+    plot_path(reconstructed_x)
+    return reconstructed_x
+end
+
+
+function plot_path(path)
+    pl = plot(aspect_ratio=:equal)
+    l = length(path)-1
+    for i ∈ 1:N
+        pl = plot!(pl, [[path[j][i][h] for j ∈ 0:l] for h ∈ 1:dim]..., label="Body $i", linealpha=0.5, linewidth=3,  aspect_ratio=:equal);
+    end
+    # anim = [Animation() for i ∈ 1:N]
+    # for i ∈ 1:N
+    #     anim[i] = @animate for j ∈ 1:l
+    #         plot([[path[j][i][h] for h ∈ 1:dim]...], label="Body $i", linealpha=0.5, linewidth=3, aspect_ratio=:equal)
+    #     end
+    # end
+
+    display(pl)
+
+end
+
+function print_path_to_file(Γ, filename)
+    open(filename, "w") do file
+        for i in 1:N
+              for h in 0:F
+                for d  in 1:dim
+                    write(file, string(Γ[h][i][d]) * " ")
+                end
+                write(file, "\n")
+              end
+        end
+        end
+end

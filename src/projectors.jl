@@ -1,18 +1,16 @@
-#  action of the inverse of g ∈ G on v ∈ ℝᵈᴺ
-ϕg_inv(v::Config)::Config =
+# Action of the n-th power of g ∈ G on v ∈ ℝᵈᴺ 
+ϕg_n(v::Config, n::Int)::Config = 
     if (cyclic_order > 1)
-        ϕ(g[1], v)
+        ϕ(g[n], v)
     else
         v
     end
 
+#  action of the inverse of g ∈ G on v ∈ ℝᵈᴺ
+ϕg_inv(v::Config)::Config = ϕg_n(v, cyclic_order-1)
+
 # action of g ∈ G on v ∈ ℝᵈᴺ
-ϕg(v::Config)::Config =
-    if (cyclic_order > 1)
-        ϕ(g[cyclic_order-1], v)
-    else
-        v
-    end
+ϕg(v::Config)::Config = ϕg_n(v, 1)
 
 # Projection onto the center of mass
 π_c(v::Config)::Config =  begin
@@ -20,7 +18,6 @@
 
     return [v[i] - xc for i ∈ axes(m,1)]
 end
-
 
 # action of h ∈ H on v ∈ ℝᵈ
 ϕ(h::G, v::Config)::Config =
@@ -33,13 +30,19 @@ end
 # Projection onto ker_T
 π_kerT(v::Config)::Config = π_H(kerT, v)
 
-# Simplified formulas since H_0 and H_1 are cyclic of order 1
-π_01(v::Config, w::Config)::Tuple{Config,Config} = ((v + ϕ(H_0, v))/2,    (w + ϕ(H_1, w)) / 2)
+# Project onto H₀
+π_0(v::Config) = (v + ϕ(H_0, v))/2
+
+# Project onto H₁
+π_1(v::Config) = (v + ϕ(H_1, v))/2
+
+# Project onto H₀ and H₁
+π_01(v::Config, w::Config)::Tuple{Config,Config} = ( π_0(v), π_1(w)  )
 
 # Case of cyclic action
 π_g(v::Config, w::Config)::Tuple{Config, Config} =  ((v + ϕg_inv(w)) / 2,  (w + ϕg(v)) / 2)
 
-
+# Project the extremities of a path
 π_a(v::Config, w::Config)::Tuple{Config,Config} =
     if (action_type == Cyclic)
         π_g( π_c(v), π_c(w) )
@@ -47,13 +50,13 @@ end
         π_01( π_c(v), π_c(w) )
     end
 
+# Project the whole path
 function project(A::Coefficients)::Coefficients
     (A[0], A[F+1]) = π_a(A[0], A[F+1])
     A = π_kerT.(π_c.(A))
-    return A
 end
 
-
+# Project a matrix projecting each of its rows and columns
 function project(H::OffsetMatrix)::OffsetMatrix
 
     for k ∈ 0:F+1, i ∈ 1:N, d ∈ 1:dim
@@ -64,6 +67,5 @@ function project(H::OffsetMatrix)::OffsetMatrix
             H[k,k1][i,i1][d, :] = slice[k1][i1]
         end    
     end
-
     return H
 end
