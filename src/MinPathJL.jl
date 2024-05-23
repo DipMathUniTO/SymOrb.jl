@@ -1,6 +1,6 @@
 module MinPathJL
 
-using GAP, OffsetArrays, Optim, LinearAlgebra, Plots, NLsolve
+using GAP, OffsetArrays, Optim, LinearAlgebra, Plots, NLsolve, LineSearches
 
 include("globals.jl")
 include("path.jl")
@@ -9,7 +9,7 @@ include("matrices.jl")
 include("action.jl")
 include("projectors.jl")
 
-export minimize, plot_path 
+export minimize, plot_path, print_path_to_file
 
 check_convergence(res::Optim.OptimizationResults)::Bool = res.iteration_converged ||  res.x_converged || res.f_converged || res.g_converged
 check_convergence(res::NLsolve.SolverResults)::Bool = res.x_converged || res.f_converged 
@@ -19,10 +19,11 @@ function minimize(config::AbstractDict, method=:BFGS;
                     starting_path_type = nothing,
                     starting_path = nothing, 
                     show_infos = false, 
-                    plot_steps = false)
+                    plot_steps = false, ϵ_in=0)
 
     LSG_from_config(config)
-
+    global ϵ = ϵ_in
+    
     if isnothing(starting_path_type) && isnothing(starting_path)
         Γ = random_starting_path()
     elseif starting_path_type == :circle
@@ -37,39 +38,41 @@ function minimize(config::AbstractDict, method=:BFGS;
     res = nothing
     res_options = MinimizationOptions()
 
-    if method == :Newton    
-        res = nlsolve(∇action, Haction, flatten(Γ), method=:trust_region, factor=10, autoscale=true, iterations=iter_max, show_trace = true)
-        minimizer = (project ∘ emboss)(res.zero)
+    if method == :Newton || method == :NewtonOnly
+        if method != :NewtonOnly  
+            options = Optim.Options(g_tol = 1e-8, allow_f_increases = true, iterations = 10, show_trace = true)
+            res = Optim.optimize(action, ∇action, Haction, flatten(Γ), BFGS(), options; inplace=false)
+            (plot_path ∘ reconstruct_path ∘ build_path ∘ project ∘ emboss)(res.minimizer)
+            v = res.minimizer
+        else 
+            v = flatten(Γ)
+        end
+    
+        res = NLsolve.nlsolve(∇action, Haction, v, method=:trust_region, factor = 10, ftol = 1e-8, iterations=iter_max, show_trace = true)
+        minimizer = res.zero
     else
         method_callable = getfield(Optim, method)   
         options = Optim.Options(g_tol = 1e-8, iterations = iter_max, show_trace = true)
 
         res = Optim.optimize(action, ∇action, Haction, flatten(Γ), method_callable(), options; inplace=false)
-        minimizer = (project ∘ emboss)(res.minimizer)
+        minimizer = res.minimizer
         res_options = MinimizationOptions(options)
     end
+    Γ_min =  (project ∘ emboss)(minimizer)
 
-    return MinimizationResult( 
-        fourier_coeff   = minimizer,
-        trajectory      = build_path(minimizer),
-        iterations      = res.iterations,
-        action_value    = _action(minimizer),
-        gradient_norm   = norm(_∇action(minimizer)),
+    result = MinimizationResult( 
         initial         = Γ,
+        fourier_coeff   = Γ_min,
+        path            = (reconstruct_path ∘ build_path)(Γ_min),
+        iterations      = res.iterations,
+        action_value    = action(minimizer),
+        gradient_norm   = norm(∇action(minimizer)),
         converged       = check_convergence(res),
         method          = method,
         options         = res_options  
     );
+    println(result)
+    return result
 end
 
-
-function plot_path(path)
-    pl = plot(aspect_ratio=:equal)
-    for i ∈ 1:N
-        pl = plot!(pl, [[path[j][i][h] for j ∈ 0:steps+1] for h ∈ 1:dim]..., label="Body $i", linewidth=3,  aspect_ratio=:equal);
-    end
-    display(pl)
 end
-
-
-end # module symorb

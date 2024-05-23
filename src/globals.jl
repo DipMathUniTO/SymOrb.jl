@@ -20,71 +20,51 @@ end
     Brake = 2
 end
 
-
-
 @kwdef struct MinimizationOptions
     g_tol::Float64 = 1e-8
     show_trace::Bool = false
     extended_trace::Bool = true
-    callback::Function = x -> false
 end
 
 MinimizationOptions(options::Optim.Options) = MinimizationOptions(
     g_tol = options.g_abstol, 
     show_trace = options.show_trace,
-    extended_trace = options.extended_trace,
-    callback = options.callback)
+    extended_trace = options.extended_trace)
+
+@kwdef struct MinimizationResult
+    initial::Coefficients
+    fourier_coeff::Coefficients
+    path::Path
+    iterations::Int64
+    gradient_norm::Float64
+    action_value::Float64
+    converged::Bool
+    method::Symbol
+    options::MinimizationOptions
+end
 
 G() = G(Permutation([]), Rotation(undef, 0, 0))
 
+global F::Int64 = 0
+global N::Int64 = 0
+global dim::Int64 = 0
+global action_type::ActionType = Cyclic
+global cyclic_order::Int64 = 0
+global dim_kerT::Int64 = 0
+global kerT::Union{G, Vector{G}} = G()
+global isΩ::Bool = false
+global dt::Float64 = 0
+global g::Vector{G} = []
+global H_0::G = G()
+global H_1::G = G()
+global m::Vector{Float64} = []
+global ϵ::Float64 = 0
+global Ω::Matrix{Float64} = Matrix(undef, 0, 0)
 
-@kwdef struct MinimizationResult
-   fourier_coeff::Coefficients
-   trajectory::Path
-   iterations::Int64
-   gradient_norm::Float64
-   action_value::Float64
-   converged::Bool
-   initial::Coefficients
-   minimization_method::Symbol
-   minimization_options::MinimizationOptions
-end
+global K::OffsetMatrix = Matrix(undef, 0, 0)
+global Id = Matrix(undef, 0,0)
 
-
-@kwdef struct SymorbConfig
-    N::Int64
-    dim::Int64
-    action_type::Int64
-    kerT::String
-    rotV::Matrix
-    rotS::String
-    refV::Matrix
-    refS::String
-    Omega::Matrix
-end
-
-
-
-N::Int64 = 0
-dim::Int64 = 0
-action_type::ActionType = Cyclic
-cyclic_order::Int64 = 0
-dim_kerT::Int64 = 0
-kerT::Union{G, Vector{G}} = G()
-isΩ::Bool = false
-dt::Float64 = 0
-g::Vector{G} = []
-H_0::G = G()
-H_1::G = G()
-m::Vector{Float64} = []
-
-Ω::Matrix{Float64} = Matrix(undef, 0, 0)
-
-K::OffsetMatrix = Matrix(undef, 0, 0)
-Id = Matrix(undef, 0,0)
-
-dx_dAk::OffsetVector = Vector(undef, 0)
-
+global dx_dAk::OffsetVector = Vector(undef, 0)
 
 function Base.:*(M::OffsetMatrix{Matrix{Matrix{T}}}, v::Coefficients)::Coefficients where {T}
     result = [[zeros(T, length(v[j][1])) for _ ∈ 1:length(v[j])] for j ∈ axes(v,1)]
@@ -107,4 +87,15 @@ end
 
 function Base.:*(M::Matrix, v::Config)
     return [[M * v[i][j] for j ∈ axes(v[i],1)] for i ∈ axes(v,1)]
+end
+
+Base.show(io::IO, result::MinimizationResult) = begin
+    println("Minimization result:")
+    println(io, "\tMethod: \t", result.method)
+    print(io, "\tConverged: \t")
+    printstyled(result.converged, color = result.converged ? :green : :red)
+    println()
+    println(io, "\tIterations: \t", result.iterations)
+    println(io, "\tGradient norm: \t", result.gradient_norm)
+    println(io, "\tAction value: \t", result.action_value)
 end

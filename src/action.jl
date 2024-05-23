@@ -11,6 +11,16 @@ kinetic(Γ) = 0.5 * Γ' * (K * Γ)
 ∇kinetic(Γ) = K * Γ
 Hkinetic(_) = K 
 
+function myfun!(F, J, v)
+
+    if ! isnothing(F)
+        F = ∇action(v)
+    end
+    if ! isnothing(J)
+        J = Haction(v)
+    end
+end
+
 # The potential part of the action
 potential(Γ) = begin
     V = U(Γ)
@@ -101,6 +111,6 @@ HU(Γ) = begin
 end
 
 
-f(x) = x
-df(x) = 1
-d2f(x) = 0
+f(x) = sqrt(x^2+ϵ)
+df(x) = x/sqrt(x^2 + ϵ)
+d2f(x) = 0.01/(x^2 + ϵ)^(3/2)
