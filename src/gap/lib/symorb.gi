@@ -58,10 +58,6 @@ InstallGlobalFunction(LagSymmetryGroupCHARS,
 
 ##
 
-
-
-
-
 ##
 
 InstallMethod(MinorbInitElements, "for LagSymmetryGroups", [IsLagSymmetryGroup],
@@ -75,7 +71,7 @@ result:=[ Elements(LSG!.kerneltau) ];
 fi;
 
 cyclic_order:= Size ( Group( Concatenation(GeneratorsOfGroup(LSG!.kerneltau),[LSG!.rotation]) )) / Size(LSG!.kerneltau);
-result[2]:=List( [1..cyclic_order], i ->  LSG!.rotation ^ i );
+result[2]:=List( [1..cyclic_order], i ->  (LSG!.rotation) ^ i );
 if LSG!.action_type > 0
 then
 result[3]:=LSG!.reflection;
@@ -86,35 +82,26 @@ end);
 
 
 
+
+
+
 ## python float conversion
 
-InstallGlobalFunction(ConvertToFloat,
-function (var)
-local str,filename,python_script, exec_program, a, tmpstring;
-python_script:= "\
-import sys,math,cmath,string\n\
-\n\
-\n\
-\n\
-tmpstring = sys.argv[1]\n\
-tmpstring = tmpstring.replace(\"^\",\"**\")\n\
-tmpstring = tmpstring.replace(\"/\",\"* 1.0 /\")\n\
-## sys.stdout.write(tmpstring)\n\
-var = eval(tmpstring)+0J \n\
-\n\
-sys.stdout.write(str(var.real)+'D0')\n\
-if var.imag != 0:\n\
-        sys.stdout.write( \"  !!! imag= \" + str(var.imag) )\n\
-\n\
-";
+InstallGlobalFunction(ConvertToString,
+function (mat)
+    local rows, cols, floatMatrix, i, j;
 
+rows := Length(mat);
+    cols := Length(mat[1]);
+    floatMatrix := [];
+    for i in [1..rows] do
+        floatMatrix[i] := [];
+        for j in [1..cols] do
+            floatMatrix[i][j] := String(mat[i][j]);
+        od;
+    od;
+    return floatMatrix;
 
-exec_program := Filename( DirectoriesSystemPrograms(), "python" );
-str := ""; a := OutputTextString(str,true);
-SetPrintFormattingStatus(a,false);
-Process( DirectoryCurrent(), exec_program, InputTextNone(), a, ["-c", python_script, String(var)] );
-CloseStream(a);
-return str;
 end);
 
 ##########

@@ -3,12 +3,17 @@ GG = GAP.Globals
 g2j = GAP.gap_to_julia
 
 
-function perm_from_gap(mat)
+function E(n)
+   return real(exp(2π * im * n / N))
+end
+
+function perm_from_gap(list)
     gs = Vector{G}()
-    for el ∈ mat
+    for el ∈ list
         GG.tuple = GapObj(el)
         perm::Vector =  g2j(@gap Permuted([1 .. NOB], tuple[2]^(-1)))
-        matrix::Matrix = hcat(g2j(@gap tuple[1])...)
+        matrix::Matrix = eval.(Meta.parse.(hcat(g2j(@gap ConvertToString(tuple[1]))...)))
+        
         push!(gs, G(perm, matrix))
     end
     return gs
@@ -16,7 +21,7 @@ end
 
 
 function LSG_from_config(data::AbstractDict)
-    global kerT, g, H_0, H_1, m, F, Ω, Ω2, dt, α, Id, steps, N, dim, action_type, cyclic_order, is_typeR, K, dx_dAk
+    global kerT, g, H_0, H_1, m, F, Ω, Ω2, dt, Id, steps, N, dim, action_type, cyclic_order, is_typeR, K, dx_dAk
 
     # load GAP package
     GAP.Packages.load("$(@__DIR__)" * "/gap")
@@ -38,11 +43,13 @@ function LSG_from_config(data::AbstractDict)
     refV = GAP.evalstr(data["refV"])
     refS = GAP.evalstr(data["refS"])
 
+    
     GG.dim, GG.NOB, GG.kern, GG.rotV, GG.rotS, GG.refV, GG.refS = dim, N, kern, rotV, rotS, refV, refS
-
+    
     GG.LSG = GG.LagSymmetryGroup(at, N, kern, rotV, rotS, refV, refS)
     minorb_elements = g2j(GG.MinorbInitElements(GG.LSG), recursive=false)
     is_typeR =  if dim==3 GG.IsTypeR(GG.LSG) else false end
+
     kerT = perm_from_gap(minorb_elements[1])
     g = perm_from_gap(minorb_elements[2])
 

@@ -97,7 +97,7 @@ DeclareAttribute("MinorbInitElements",IsLagSymmetryGroup);
 
 ##
 ## UnbindGlobal("ConvertToFloat");
-DeclareGlobalFunction("ConvertToFloat");
+DeclareGlobalFunction("ConvertToString");
 
 ## UnbindGlobal("ConvertToFloatNC");
 DeclareGlobalFunction("ConvertToFloatNC");
