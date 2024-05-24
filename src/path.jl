@@ -76,43 +76,22 @@ function get_starting_path(path_type::Symbol)::OffsetArray
     end
 end
 
+random_starting_path()::OffsetArray =  FromZero([[rand(Float64, dim) .- 0.5 for i ∈ 1:N] for j ∈ 0:F+1])
 
-function random_starting_path()::OffsetArray
-    A = [[rand(Float64, dim) .- 0.5 for i ∈ 1:N] for j ∈ 0:F+1]
-    return OffsetArrays.Origin(0)(A)
-end
-
-
-function circular_starting_path()::OffsetArray
+circular_starting_path()::Coefficients = begin
     x::Path = FromZero([[zeros(dim) for i ∈ 1:N] for j ∈ 1:steps+2])
 
-    for h ∈ 0:steps+1
-        for i ∈ 1:N
-            x[h][i][1] = cos(h * dt + (i-1) * 2 * π / N)
-            x[h][i][2] = sin(h * dt + (i-1) * 2 * π / N)
-        end
+    for h ∈ 0:steps+1, i ∈ 1:N
+        x[h][i][1] = cos(h * dt + (i-1) * 2 * π / N)
+        x[h][i][2] = sin(h * dt + (i-1) * 2 * π / N)
     end
 
-    A = fourier_coefficients(x)
-    plot_path(x)
-    return FromZero(A)
+    return (FromZero ∘ fourier_coefficients)(x)
 end
 
-function perturbed_circular_starting_path()::OffsetArray
-    x::Path = FromZero([[zeros(dim) for i ∈ 1:N] for j ∈ 1:steps+2])
+perturbed_path(x::Path, λ = 0.001 )::Coefficients = x + λ * random_starting_path()
 
-    for h ∈ 0:steps+1
-        for i ∈ 1:N
-            x[h][i][1] = cos(h * dt + (i-1) * 2 * π / N) + 0.1 * randn()
-            x[h][i][2] = sin(h * dt + (i-1) * 2 * π / N) + 0.1 * randn()
-        end
-    end
-
-    A = fourier_coefficients(x)
-    plot_path(x)
-    return FromZero(A)
-end
-
+perturbed_circular_starting_path(λ::Float64 = 0.001)::Coefficients = circular_starting_path() + λ * random_starting_path()
 
 function reconstruct_path(x::Path)
     n = lastindex(x)-1
@@ -143,20 +122,16 @@ function plot_path(path)
     theme = theme_dark()
     set_theme!(theme)
     f = Figure(size=(800, 800))
-    ax = nothing
-    if dim == 2
-        ax  = Axis(f[1,1],autolimitaspect = 1)
-    elseif dim == 3
-        ax  = Axis3(f[1,1],aspect = :data)
-    else 
-        return
-    end
+    al = AmbientLight(RGBf(0.3, 0.3, 0.3))
+    dl = DirectionalLight(RGBf(0.9, 0.9, 0.9), Vec3f(-1, 1, -1))
+    ax = LScene(f[1, 1], show_axis=false, scenekw = (lights = [al, dl], backgroundcolor=:black, clear=true))
 
-    hidedecorations!(ax)
     l = length(path)-1
-    @show l
+
     for i ∈ 1:N
-        lines!(ax, [[path[j][i][h] for j ∈ 0:l] for h ∈ 1:dim]..., color=i, colormap=:lightrainbow, colorrange = (1,N), label="Body $i");
+        lines!(ax, 
+                [[path[j][i][h] for j ∈ 0:l] for h ∈ 1:dim]..., 
+                color=i, colormap=:lightrainbow, colorrange = (1,N), transparency=true, ssao=true, fxaa=true, linewidth=2);
     end
 
     display(f)
@@ -175,7 +150,7 @@ function path_animation(path, fps::Int = 30)
     else 
         return
     end
-    scatter!(ax, bodies, markersize=40, color=1:N, colormap=:lightrainbow, colorrange=(1,N))
+    meshscatter!(ax, bodies, color=1:N, colormap=:lightrainbow, colorrange=(1,N))
     t = 0
     while true
         if(t == length(path)) t = 0 end
