@@ -109,12 +109,3 @@ HU(Γ) = begin
 
     return HU
 end
-
-
-# f(x) = sqrt(x^2+ϵ)
-# df(x) = x/sqrt(x^2 + ϵ)
-# d2f(x) = 0.01/(x^2 + ϵ)^(3/2)
-
-f(x) = x
-df(x) = 1
-d2f(x) = 0

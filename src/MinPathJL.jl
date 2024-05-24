@@ -1,6 +1,6 @@
 module MinPathJL
 
-using GAP, OffsetArrays, Optim, LinearAlgebra, GLMakie, NLsolve, LineSearches
+using GAP, OffsetArrays, Optim, LinearAlgebra, GLMakie, NLsolve, LineSearches, ForwardDiff
 
 include("globals.jl")
 include("path.jl")
@@ -17,18 +17,25 @@ check_convergence(res::NLsolve.SolverResults)::Bool = res.x_converged || res.f_c
 
 function minimize(config::AbstractDict, method=:BFGS; 
                     iter_max=Int(1e4),
-                    starting_path_type = nothing,
-                    starting_path = nothing, 
-                    show_infos = false, 
-                    plot_steps = false, ϵ_in=0)
+                    starting_path_type = :random,
+                    starting_path = nothing,
+                    show_trace = true, 
+                    denominator = nothing)
 
     LSG_from_config(config)
-    global ϵ = ϵ_in
-    
-    if isnothing(starting_path_type) && isnothing(starting_path)
-        Γ = random_starting_path()
-    elseif starting_path_type == :circle
-        Γ = circular_starting_path()
+
+    if isnothing(denominator)
+        global f = x -> x
+        global df = x -> 1
+        global d2f = x -> 0
+    else
+        global f = denominator
+        global df = x -> ForwardDiff.derivative(denominator, x)
+        global d2f = x -> ForwardDiff.derivative(df, x)
+    end
+
+    if isnothing(starting_path)
+        Γ = get_starting_path(starting_path_type)
     else 
         Γ = starting_path
     end
@@ -39,24 +46,40 @@ function minimize(config::AbstractDict, method=:BFGS;
     res = nothing
     res_options = MinimizationOptions()
 
+    println("Starting minimization...")
     if method == :Newton || method == :NewtonOnly
         while isnothing(res) || !check_convergence(res)
-            Γ = project(random_starting_path())
             if method != :NewtonOnly  
-                options = Optim.Options(g_tol = 1e-8, allow_f_increases = true, iterations = 10, show_trace = true)
+                options = Optim.Options(g_tol = 1e-8, allow_f_increases = true, iterations = 5, show_trace = show_trace)
                 res = Optim.optimize(action, ∇action, Haction, flatten(Γ), BFGS(), options; inplace=false)
                 v = res.minimizer
             else 
                 v = flatten(Γ)
             end
         
-            res = NLsolve.nlsolve(∇action, Haction, v, method=:trust_region, factor = 5, ftol = 1e-8, iterations=iter_max, show_trace = true)
+            res = NLsolve.nlsolve(∇action, Haction, v, method=:trust_region, factor = 10, ftol = 1e-8, iterations=iter_max, show_trace = show_trace)
+            println("\tAction:\t\t",action(res.zero)) 
+            println("\tGradient:\t",norm(∇action(res.zero))) 
+            print("\tConverged:\t")
+            printstyled( check_convergence(res), "\n", color = check_convergence(res) ? :green : :red)
+            println()
+            if ! check_convergence(res)
+                
+                if action(res.zero) > 1.0 
+                    method = :Newton
+                    Γ = emboss(res.zero)
+                    println("Action value is high, continuing minimization")
+                else 
+                    Γ = project(get_starting_path(starting_path_type))
+                    println("Action value is low, starting a new minimization")
+                end
+            end 
         end
 
         minimizer = res.zero
     else
         method_callable = getfield(Optim, method)   
-        options = Optim.Options(g_tol = 1e-8, iterations = iter_max, show_trace = true)
+        options = Optim.Options(g_tol = 1e-8, iterations = iter_max, show_trace = show_trace)
 
         res = Optim.optimize(action, ∇action, Haction, flatten(Γ), method_callable(), options; inplace=false)
         minimizer = res.minimizer

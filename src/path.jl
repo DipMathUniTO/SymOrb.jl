@@ -64,6 +64,18 @@ function flatten(H::AbstractMatrix{Matrix{Matrix{T}}})::Matrix{T} where {T}
     return M
 end
 
+function get_starting_path(path_type::Symbol)::OffsetArray
+    if path_type == :random
+        return random_starting_path()
+    elseif path_type == :circular
+        return circular_starting_path()
+    elseif path_type == :perturbed_circular
+        return perturbed_circular_starting_path()
+    else
+        return random_starting_path()
+    end
+end
+
 
 function random_starting_path()::OffsetArray
     A = [[rand(Float64, dim) .- 0.5 for i ∈ 1:N] for j ∈ 0:F+1]
