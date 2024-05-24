@@ -116,7 +116,6 @@ end
 
 function reconstruct_path(x::Path)
     n = lastindex(x)-1
-    @show n
     initial_path = FromZero([[zeros(dim) for i ∈ 1:N] for j ∈ 0:(2*n+1)])
     complete_path = FromZero([])
     initial_path[0:n+1] = copy(x[0:n+1])
@@ -155,7 +154,7 @@ function plot_path(path)
 
     hidedecorations!(ax)
     l = length(path)-1
-    
+    @show l
     for i ∈ 1:N
         lines!(ax, [[path[j][i][h] for j ∈ 0:l] for h ∈ 1:dim]..., color=i, colormap=:lightrainbow, colorrange = (1,N), label="Body $i");
     end
