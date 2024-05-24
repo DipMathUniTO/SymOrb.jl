@@ -25,7 +25,6 @@ function LSG_from_config(data::AbstractDict)
     # load GAP package
     GAP.Packages.load("$(@__DIR__)" * "/gap")
 
-
     global N = data["NOB"]
     GG.NOB = N
     
@@ -52,16 +51,11 @@ function LSG_from_config(data::AbstractDict)
     if action_type != Cyclic
         global H_0 = perm_from_gap([minorb_elements[3]])[1]
         global H_1 = perm_from_gap([minorb_elements[4]])[1]
-        global H_0 = perm_from_gap([minorb_elements[3]])[1]
-        global H_1 = perm_from_gap([minorb_elements[4]])[1]
     else
-        global H_0 = G()
-        global H_1 = G()
         global H_0 = G()
         global H_1 = G()
     end
 
-    global cyclic_order = length(g)
     global cyclic_order = length(g)
 
     global m = data["m"]           # the masses
@@ -72,13 +66,9 @@ function LSG_from_config(data::AbstractDict)
 
     global Ω2 = Ω * Ω
     global dx_dAk = compute_dx_dAk()
-    global Ω2 = Ω * Ω
-    global dx_dAk = compute_dx_dAk()
     
     global Id = [if i == j m[i] * I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N]
-    global Id = [if i == j m[i] * I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N]
 
-    global K = K_linear()
     global K = K_linear()
     
     if (!iszero(Ω))
