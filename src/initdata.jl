@@ -4,7 +4,7 @@ g2j = GAP.gap_to_julia
 
 
 function E(n)
-   return real(exp(2π * im * n / N))
+   return real(exp(2*π * im / n))
 end
 
 function perm_from_gap(list)

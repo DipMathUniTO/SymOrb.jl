@@ -8,6 +8,7 @@ Coefficients = OffsetVector{Config}
 Permutation = Vector{Int64}
 Rotation = Matrix
 
+FromZero = OffsetArrays.Origin(0) 
 
 struct G
     σ::Permutation
