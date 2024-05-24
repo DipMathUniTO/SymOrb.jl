@@ -21,17 +21,16 @@ end
 
 
 function LSG_from_config(data::AbstractDict)
-    global kerT, g, H_0, H_1, m, F, Ω, Ω2, dt, Id, steps, N, dim, action_type, cyclic_order, is_typeR, K, dx_dAk
 
     # load GAP package
     GAP.Packages.load("$(@__DIR__)" * "/gap")
 
 
-    N = data["NOB"]
-    dim = data["dim"]
+    global N = data["NOB"]
+    global dim = data["dim"]
     at = data["action_type"]
 
-    action_type = ActionType(at)
+    global action_type = ActionType(at)
     if data["kern"] == "TrivialKerTau"
         kern = GG.TrivialKerTau(dim)
     else
@@ -48,32 +47,33 @@ function LSG_from_config(data::AbstractDict)
     
     GG.LSG = GG.LagSymmetryGroup(at, N, kern, rotV, rotS, refV, refS)
     minorb_elements = g2j(GG.MinorbInitElements(GG.LSG), recursive=false)
-    is_typeR =  if dim==3 GG.IsTypeR(GG.LSG) else false end
+    global is_typeR =  if dim==3 GG.IsTypeR(GG.LSG) else false end
 
-    kerT = perm_from_gap(minorb_elements[1])
-    g = perm_from_gap(minorb_elements[2])
+    global kerT = perm_from_gap(minorb_elements[1])
+    global g = perm_from_gap(minorb_elements[2])
 
     if action_type != Cyclic
-        H_0 = perm_from_gap([minorb_elements[3]])[1]
-        H_1 = perm_from_gap([minorb_elements[4]])[1]
+        global H_0 = perm_from_gap([minorb_elements[3]])[1]
+        global H_1 = perm_from_gap([minorb_elements[4]])[1]
     else
-        H_0, H_1 = G(), G()
+        global H_0 = G()
+        global H_1 = G()
     end
 
-    cyclic_order = length(g)
+    global cyclic_order = length(g)
 
-    m = data["m"]              # the masses
-    F = data["F"]              # number of Fourier series terms
-    steps = 2 * F           # number of steps in the discretization of time [0,1]
-    dt = π / (steps+1)      # time step
-    Ω = hcat(data["Omega"]...)
+    global m = data["m"]              # the masses
+    global F = data["F"]              # number of Fourier series terms
+    global steps = 2 * F           # number of steps in the discretization of time [0,1]
+    global dt = π / (steps+1)      # time step
+    global Ω = hcat(data["Omega"]...)
 
-    Ω2 = Ω * Ω
-    dx_dAk = compute_dx_dAk()
+    global Ω2 = Ω * Ω
+    global dx_dAk = compute_dx_dAk()
     
-    Id = [if i == j m[i] * I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N]
+    global Id = [if i == j m[i] * I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N]
 
-    K = K_linear()
+    global K = K_linear()
     
     if (!iszero(Ω))
         K +=  Ω2 * K_centrifugal() + Ω * K_coriolis()
