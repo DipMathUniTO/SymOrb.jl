@@ -71,7 +71,7 @@ function LSG_from_config(data::AbstractDict)
     Ω2 = Ω * Ω
     dx_dAk = compute_dx_dAk()
     
-    Id = [if i == j I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N]
+    Id = [if i == j m[i] * I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N]
 
     K = K_linear()
     
