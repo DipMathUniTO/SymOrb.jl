@@ -9,21 +9,29 @@ include("matrices.jl")
 include("action.jl")
 include("projectors.jl")
 
-export minimize, plot_path, print_path_to_file, path_animation
+export find_orbit, plot_path, print_path_to_file, path_animation
+export Newton, BFGS, ConjugateGradient, Methods
+
+check_convergence(res::Optim.OptimizationResults)::Bool = res.x_converged || res.f_converged || res.g_converged
+check_convergence(res::NLsolve.SolverResults)::Bool = res.x_converged || res.f_converged
 
 
-check_convergence(res::Optim.OptimizationResults)::Bool = res.iteration_converged ||  res.x_converged || res.f_converged || res.g_converged
-check_convergence(res::NLsolve.SolverResults)::Bool = res.x_converged || res.f_converged 
+function find_critical_point(Γ::Coefficients, method::NLSolveMethod)
+    res = NLsolve.nlsolve(∇action, Haction, flatten(Γ), method=method.f_name, iterations=method.max_iter, show_trace=method.show_trace, factor=10, ftol=1e-8)
+    MinimizationResult(Γ, res.zero, method, res.iterations, check_convergence(res))
+end
 
-function minimize(config::AbstractDict, method=:BFGS; 
-                    iter_max=Int(1e4),
-                    starting_path_type = :random,
-                    starting_path = nothing,
-                    show_trace = true, 
-                    denominator = nothing)
+function find_critical_point(Γ::Coefficients, method::OptimMethod)
+    method_callable = getfield(Optim, method.f_name)
+    options = Optim.Options(g_tol=1e-8, iterations=method.max_iter, show_trace=method.show_trace)
+    res = Optim.optimize(action, ∇action, Haction, flatten(Γ), method_callable(), options; inplace=false)
+    MinimizationResult(Γ, res.minimizer, method, res.iterations, check_convergence(res))
+end
+
+function find_orbit(config::AbstractDict, methods=[(:BFGS, 200)]; starting_path_type=:random, starting_path=nothing, denominator=nothing, options...)
 
     LSG_from_config(config)
-
+    max_repetitions = 100
     if isnothing(denominator)
         global f = x -> x
         global df = x -> 1
@@ -36,69 +44,44 @@ function minimize(config::AbstractDict, method=:BFGS;
 
     if isnothing(starting_path)
         Γ = get_starting_path(starting_path_type)
-    else 
+    else
         Γ = starting_path
     end
 
     Γ = project(Γ)
-    
-    minimizer = nothing
-    res = nothing
-    res_options = MinimizationOptions()
 
     println("Starting minimization...")
-    if method == :Newton || method == :NewtonOnly
-        while isnothing(res) || !check_convergence(res)
-            if method != :NewtonOnly  
-                options = Optim.Options(g_tol = 1e-8, allow_f_increases = true, iterations = 5, show_trace = show_trace)
-                res = Optim.optimize(action, ∇action, Haction, flatten(Γ), BFGS(), options; inplace=false)
-                v = res.minimizer
-            else 
-                v = flatten(Γ)
-            end
-        
-            res = NLsolve.nlsolve(∇action, Haction, v, method=:trust_region, factor = 10, ftol = 1e-8, iterations=iter_max, show_trace = show_trace)
-            println("\tAction:\t\t",action(res.zero)) 
-            println("\tGradient:\t",norm(∇action(res.zero))) 
-            print("\tConverged:\t")
-            printstyled( check_convergence(res), "\n", color = check_convergence(res) ? :green : :red)
-            println()
-            if ! check_convergence(res)
-                
-                if action(res.zero) > 1.0 
-                    method = :Newton
-                    Γ = emboss(res.zero)
-                    println("Action value is high, continuing minimization")
-                else 
-                    Γ = project(get_starting_path(starting_path_type))
-                    println("Action value is low, starting a new minimization")
-                end
-            end 
-        end
 
-        minimizer = res.zero
-    else
-        method_callable = getfield(Optim, method)   
-        options = Optim.Options(g_tol = 1e-8, iterations = iter_max, show_trace = show_trace)
-
-        res = Optim.optimize(action, ∇action, Haction, flatten(Γ), method_callable(), options; inplace=false)
-        minimizer = res.minimizer
-        res_options = MinimizationOptions(options)
+    result = nothing
+    
+    
+    @show methods
+    if ! isnothing(methods.init)
+        result = find_critical_point(Γ, methods.init)
     end
-    Γ_min =  (project ∘ emboss)(minimizer)
+    
+    repetitions = 0
+    while (isnothing(result) || ! result.converged) && repetitions < max_repetitions
+        println(result)
+        
+        method = if iseven(repetitions) && ! isnothing(methods.second) methods.second else methods.first end
 
-    result = MinimizationResult( 
-        initial         = Γ,
-        fourier_coeff   = Γ_min,
-        path            = reconstruct_path(build_path(Γ_min)), 
-        iterations      = res.iterations,
-        action_value    = action(minimizer),
-        gradient_norm   = norm(∇action(minimizer)),
-        converged       = check_convergence(res),
-        method          = method,
-        options         = res_options  
-    );
-    println(result)
+        result = find_critical_point(Γ, method)
+
+        if !result.converged
+            println(result)
+            if result.action_value > 1.0
+                println("Action value is high\nPerturbing path and continuing minimization")
+                method = :NewtonOnly
+                Γ = perturbed_path(result.fourier_coeff, 5e-3)
+            else
+                println("Action value is low, starting a new minimization")
+                Γ = project(get_starting_path(starting_path_type))
+            end
+        end
+        repetitions += 1
+    end
+
     return result
 end
 

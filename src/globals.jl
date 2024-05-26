@@ -21,28 +21,6 @@ end
     Brake = 2
 end
 
-@kwdef struct MinimizationOptions
-    g_tol::Float64 = 1e-8
-    show_trace::Bool = false
-    extended_trace::Bool = true
-end
-
-MinimizationOptions(options::Optim.Options) = MinimizationOptions(
-    g_tol = options.g_abstol, 
-    show_trace = options.show_trace,
-    extended_trace = options.extended_trace)
-
-@kwdef struct MinimizationResult
-    initial::Coefficients
-    fourier_coeff::Coefficients
-    path::Path
-    iterations::Int64
-    gradient_norm::Float64
-    action_value::Float64
-    converged::Bool
-    method::Symbol
-    options::MinimizationOptions
-end
 
 G() = G(Permutation([]), Rotation(undef, 0, 0))
 
@@ -88,6 +66,88 @@ end
 
 function Base.:*(M::Matrix, v::Config)
     return [[M * v[i][j] for j ∈ axes(v[i],1)] for i ∈ axes(v,1)]
+end
+
+abstract type AbstractMethod end
+abstract type OptimMethod <: AbstractMethod end
+abstract type NLSolveMethod <: AbstractMethod end
+
+macro new_method(struct_name, f_name, type)
+    quote
+        @kwdef struct $struct_name <: $type
+            f_name::Symbol = $f_name
+            max_iter::Int64 = 200
+            show_trace::Bool = false
+            tolerance::Float64 = 1e-8
+            iterations::Int64 = 0
+        end
+        
+        # Define a constructor that accepts a single Int for max_iter
+        function $(esc(struct_name))(max_iter::Int)
+            $(esc(struct_name))(max_iter = max_iter)
+        end
+        
+    end
+end
+
+@new_method Newton :trust_region NLSolveMethod
+@new_method BFGS :BFGS OptimMethod
+@new_method ConjugateGradient :ConjugateGradient OptimMethod
+
+@kwdef struct Methods
+    init::Union{AbstractMethod, Nothing} = nothing
+    first::Union{AbstractMethod, Nothing} = BFGS()
+    second::Union{AbstractMethod, Nothing} = nothing
+end
+
+Methods(one_method::AbstractMethod) = Methods(init = nothing, first = one_method, second = nothing)
+Methods(init_method::AbstractMethod, method::AbstractMethod) = Methods(init = init_method, first = method)
+
+
+
+@kwdef struct MinimizationResult
+    initial::Coefficients
+    fourier_coeff::Coefficients
+    path::Path
+    iterations::Int64
+    gradient_norm::Float64
+    action_value::Float64
+    converged::Bool
+    method::AbstractMethod
+end
+
+MinimizationResult(Γ, minimizer, method, iterations, converged) = begin
+   Γ_min = (project ∘ emboss)(minimizer) 
+   MinimizationResult(
+    initial = Γ,
+    fourier_coeff = Γ_min,
+    path = (reconstruct_path ∘ build_path)(Γ_min),
+    iterations = iterations,
+    gradient_norm = norm(∇action(minimizer)),
+    action_value = action(minimizer),
+    converged = converged,
+    method=method
+)
+end 
+
+
+
+Base.show(io::IO, method::AbstractMethod) = begin
+    print(io, typeof(method), "(max_iter=", method.max_iter, ", tolerance=", method.tolerance, ")")
+end
+
+Base.show(io::IO, ::MIME"text/plain", method::AbstractMethod) = begin
+    println(io, typeof(method), " minimization method:")
+    println(io, "\tIterations:\t", method.max_iter)
+    println(io, "\tShow trace:\t", method.show_trace)
+    println(io, "\tTolerance:\t", method.tolerance)
+end
+
+Base.show(io::IO, methods::Methods) = begin
+    println(io, "Methods:")
+    println(io, "  Init:\t\t", typeof(methods.init))
+    println(io, "  First:\t", typeof(methods.first))
+    println(io, "  Second:\t", typeof(methods.second))
 end
 
 Base.show(io::IO, result::MinimizationResult) = begin
