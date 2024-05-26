@@ -12,8 +12,8 @@ include("projectors.jl")
 export find_orbit, plot_path, print_path_to_file, path_animation
 export Newton, BFGS, ConjugateGradient, Methods
 
-check_convergence(res::Optim.OptimizationResults)::Bool = res.x_converged || res.f_converged || res.g_converged
-check_convergence(res::NLsolve.SolverResults)::Bool = res.x_converged || res.f_converged
+check_convergence(res::Optim.OptimizationResults)::Bool = (res.x_converged || res.f_converged || res.g_converged)
+check_convergence(res::NLsolve.SolverResults)::Bool =  (res.x_converged || res.f_converged)
 
 
 function find_critical_point(Γ::Coefficients, method::NLSolveMethod)
@@ -27,6 +27,47 @@ function find_critical_point(Γ::Coefficients, method::OptimMethod)
     res = Optim.optimize(action, ∇action, Haction, flatten(Γ), method_callable(), options; inplace=false)
     MinimizationResult(Γ, res.minimizer, method, res.iterations, check_convergence(res))
 end
+
+
+function find_critical_point_loop(Γ::Coefficients, methods::Methods; repetitions=10, perturb::Bool = false, perturbation::Float64 = 1e-3, action_threshold=2.0)::MinimizationResult
+    result = nothing
+    last_result = nothing
+    for i ∈ 1:repetitions
+
+        printstyled("#$i ", color=:yellow, bold=true)
+
+        result = find_critical_point(Γ, methods.first)
+
+        if ! isnothing(methods.second) && ! result.converged
+            result = find_critical_point(result.fourier_coeff, methods.second)
+        end
+
+        println(result)
+
+        if result.converged
+            return result
+        end
+
+        if  result.action_value < action_threshold
+            return result
+        end
+
+        println("Action value $(result.action_value) > threshold $(action_threshold)")
+        
+        if i < repetitions 
+            if perturb
+                printstyled("==> Perturbing path and continuing minimization\n\n", color=:yellow, bold=true)
+                Γ = (project ∘ perturbed_path)(result.fourier_coeff, perturbation)
+            else 
+                printstyled("==> Continuing minimization\n\n", color=:yellow, bold=true)
+                Γ = project(result.fourier_coeff)
+            end
+            last_result = result
+        end
+    end
+    return result
+end 
+
 
 function find_orbit(config::AbstractDict, methods=[(:BFGS, 200)]; starting_path_type=:random, starting_path=nothing, denominator=nothing, options...)
 
@@ -42,45 +83,29 @@ function find_orbit(config::AbstractDict, methods=[(:BFGS, 200)]; starting_path_
         global d2f = x -> ForwardDiff.derivative(df, x)
     end
 
-    if isnothing(starting_path)
-        Γ = get_starting_path(starting_path_type)
-    else
-        Γ = starting_path
-    end
+    println(methods)
 
-    Γ = project(Γ)
-
-    println("Starting minimization...")
-
-    result = nothing
-    
-    
-    @show methods
-    if ! isnothing(methods.init)
-        result = find_critical_point(Γ, methods.init)
-    end
-    
-    repetitions = 0
-    while (isnothing(result) || ! result.converged) && repetitions < max_repetitions
-        println(result)
-        
-        method = if iseven(repetitions) && ! isnothing(methods.second) methods.second else methods.first end
-
-        result = find_critical_point(Γ, method)
-
-        if !result.converged
-            println(result)
-            if result.action_value > 1.0
-                println("Action value is high\nPerturbing path and continuing minimization")
-                method = :NewtonOnly
-                Γ = perturbed_path(result.fourier_coeff, 5e-3)
-            else
-                println("Action value is low, starting a new minimization")
-                Γ = project(get_starting_path(starting_path_type))
-            end
+    while true 
+        if isnothing(starting_path)
+            Γ = get_starting_path(starting_path_type)
+        else
+            Γ = starting_path
         end
-        repetitions += 1
-    end
+        Γ = project(Γ)
+
+        printstyled("Starting a new minimization...\n\n", color=:blue, bold=true)
+
+        if ! isnothing(methods.init)
+            printstyled("Init: ", color=:yellow, bold=true)
+            result = find_critical_point(Γ, methods.init)
+            println(result)
+        end
+        
+        result = find_critical_point_loop(Γ, methods)
+        if result.converged && ! isnan(result.action_value) return result end
+        printstyled("==> Path did not converge\n\n", color=:red, bold=true)
+        
+    end    
 
     return result
 end
