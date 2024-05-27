@@ -139,9 +139,11 @@ function plot_path(path)
 end
 
 
-function path_animation(path, fps::Int = 30)
+function path_animation(path, period = 12.0)
     
     ax = plot_path(path)
+
+    fps = length(path)/period
 
     if dim == 2
         bodies = Observable([Point2(zeros(2)) for _ ∈ 1:N])
@@ -176,13 +178,13 @@ function read_path_from_file(filename, config)
         data = readlines(file)
     end 
 
-    for i in axis(data)
+    for i in 1:length(data)
         t = (i-1) % (F+2)
         n = div((i-1), F+2) + 1
-        @show t, n
         Γ[t][n] = parse.(Float64, split(data[i]))
     end
     return Γ
 
 end
 
+ refine_path(Γ::Coefficients, n::Int = steps+1)::Path = reconstruct_path(build_path(Γ, n))
