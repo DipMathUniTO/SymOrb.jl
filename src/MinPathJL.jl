@@ -9,7 +9,7 @@ include("matrices.jl")
 include("action.jl")
 include("projectors.jl")
 
-export find_orbit, plot_path, print_path_to_file, path_animation
+export find_orbit, plot_path, print_path_to_file, path_animation, refine_path, read_path_from_file
 export Newton, BFGS, ConjugateGradient, Methods
 
 check_convergence(res::Optim.OptimizationResults)::Bool = (res.x_converged || res.f_converged || res.g_converged)
@@ -102,7 +102,9 @@ function find_orbit(config::AbstractDict, methods=[(:BFGS, 200)]; starting_path_
         end
         
         result = find_critical_point_loop(Γ, methods)
-        if result.converged && ! isnan(result.action_value) return result end
+        if (result.converged  || result.gradient_norm < 1e-2) && ! isnan(result.action_value) 
+            print_path_to_file(result.fourier_coeff, string(result.action_value)*".txt")
+        end
         printstyled("==> Path did not converge\n\n", color=:red, bold=true)
         
     end    
