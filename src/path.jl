@@ -118,49 +118,6 @@ function reconstruct_path(x::Path)
 end
 
 
-function plot_path(path)
-    theme = theme_dark()
-    set_theme!(theme)
-    f = Figure(size=(800, 800))
-    al = AmbientLight(RGBf(0.3, 0.3, 0.3))
-    dl = DirectionalLight(RGBf(0.9, 0.9, 0.9), Vec3f(-1, 1, -1))
-    ax = LScene(f[1, 1], show_axis=false, scenekw = (lights = [al, dl], backgroundcolor=:black, clear=true))
-
-    l = length(path)-1
-
-    for i ∈ 1:N
-        lines!(ax, 
-                [[path[j][i][h] for j ∈ 0:l] for h ∈ 1:dim]..., 
-                color=i, colormap=:lightrainbow, colorrange = (1,N), transparency=true, ssao=true, fxaa=true, linewidth=2);
-    end
-
-    display(f)
-    return ax
-end
-
-
-function path_animation(path, period = 12.0)
-    
-    ax = plot_path(path)
-
-    fps = length(path)/period
-
-    if dim == 2
-        bodies = Observable([Point2(zeros(2)) for _ ∈ 1:N])
-    elseif dim == 3
-        bodies = Observable([Point3(zeros(3)) for _ ∈ 1:N])
-    else 
-        return
-    end
-    meshscatter!(ax, bodies, color=1:N, colormap=:lightrainbow, colorrange=(1,N))
-    t = 0
-    while true
-        if(t == length(path)) t = 0 end
-        bodies[] = path[t]
-        t += 1
-        sleep(1.0/fps)
-    end
-end
 
 function print_path_to_file(Γ, filename)
     open(filename, "w") do file
