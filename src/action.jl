@@ -172,16 +172,17 @@ end
 
 
 """
-    U(Γ::Coefficients)::AbstractVector
+    U(Γ::Coefficients, [n::Int64 = steps+1])::AbstractVector
 
-Compute the potential for a given configuration ``Γ`` having an arbitrary function `f(r)` at the denominator
+Compute the potential for a given configuration ``Γ`` having an arbitrary function `f(r)` 
+    at the denominator  and using  ``n`` points along the path.
 """
-U(Γ::Coefficients)::AbstractVector = begin
-    V = OffsetArray(zeros(steps+2), 0:steps+1)
+U(Γ::Coefficients, n::Int64 = steps+1)::AbstractVector = begin
+    V = OffsetArray(zeros(n+1), 0:n)
 
-    x = build_path(Γ)
+    x = build_path(Γ, n)
 
-    for h ∈ 0:steps+1, i ∈ 1:N-1, j ∈ (i+1):N
+    for h ∈ 0:n, i ∈ 1:N-1, j ∈ (i+1):N
         V[h] += m[i] * m[j] /  f(norm(x[h][i] - x[h][j])) 
     end
 
@@ -189,16 +190,18 @@ U(Γ::Coefficients)::AbstractVector = begin
 end
 
 """
-    ∇U(Γ::Coefficients)::AbstractVector
+    ∇U(Γ::Coefficients, [n::Int64 = steps+1])::AbstractVector
 
-Compute the gradient potential for a given configuration ``Γ`` having an arbitrary function `f(r)` at the denominator
+Compute the gradient of the potential for a given configuration ``Γ``
+ having an arbitrary function `f(r)` at the denominator and using  ``n`` points along the path.
 """
-∇U(Γ::Coefficients)::AbstractVector = begin
-    ∇U = OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 1:steps+2], 0:steps+1)
-    
-    x = build_path(Γ)
 
-    for h ∈ 0:steps+1, i ∈ 1:N-1, j ∈ (i+1):N
+∇U(Γ::Coefficients, n::Int64 = steps+1)::AbstractVector = begin
+    ∇U = zeros(Γ, n)
+    
+    x = build_path(Γ, n)
+
+    for h ∈ 0:n, i ∈ 1:N-1, j ∈ (i+1):N
         Δx = x[h][i] - x[h][j]
         r = norm(Δx)
         ∇U_ij = - m[i] * m[j] / f(r)^2 * df(r) * Δx / r
@@ -211,16 +214,17 @@ end
 
 
 """ 
-    HU(Γ::Coefficients)::AbstractMatrix
+    HU(Γ::Coefficients, [n::Int64 = steps+1])::AbstractMatrix
 
-Compute the hessian for a given configuration ``Γ`` having an arbitrary function `f(r)` at the denominator
+Compute the hessian for a given configuration ``Γ`` having an arbitrary function 
+    `f(r)` at the denominator  and using  ``n`` points along the path.
 """
-HU(Γ) = begin
-    HU = OffsetArray([[zeros(dim,dim) for _ ∈ 1:N, _ ∈ 1:N] for _ ∈ 1:steps+2], 0:steps+1)
+HU(Γ::Coefficients, n::Int64)::AbstractVector = begin
+    HU = OffsetArray([[zeros(dim,dim) for _ ∈ 1:N, _ ∈ 1:N] for _ ∈ 0:n], 0:n)
 
     x = build_path(Γ)
 
-    for h ∈ 0:steps+1, i ∈ 1:N-1, j ∈ (i+1):N
+    for h ∈ 0:n, i ∈ 1:N-1, j ∈ (i+1):N
         Δx = x[h][i] - x[h][j]
         r = norm(Δx)
 
@@ -233,4 +237,22 @@ HU(Γ) = begin
     end 
 
     return HU
+end
+
+
+"""
+    K_energy(Γ::Coefficients, [n::Int64 = steps+1])::AbstractVector
+
+Compute the kinetic energy for a given configuration ``Γ`` over ``n`` points along the path.
+"""
+function K_energy(Γ::Coefficients, n::Int64 = steps+1)::AbstractVector
+    v = zeros(Γ, n)
+
+    for h ∈ 0:n
+        v[h] = (Γ[F+1] - Γ[0])/π + sum(k * Γ[k] * cos(k * h * π/n) for k ∈ 1:F)
+    end
+    
+    Ek = [ 0.5 * sum( m[i] * v[h][i] ⋅ v[h][i]   for i∈1:N) for h ∈ 0:n]
+
+    return FromZero(Ek)
 end

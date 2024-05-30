@@ -10,7 +10,7 @@ include("matrices.jl")
 include("action.jl")
 include("projectors.jl")
 
-export find_orbit, print_path_to_file, show, refine_path, read_path_from_file
+export find_orbit, print_path_to_file, path_animation, refine_path, read_path_from_file
 export Newton, BFGS, ConjugateGradient, Methods
 
 check_convergence(res::Optim.OptimizationResults)::Bool = (res.x_converged || res.f_converged || res.g_converged)

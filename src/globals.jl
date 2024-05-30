@@ -68,6 +68,7 @@ function Base.:*(M::Matrix, v::Config)
     return [[M * v[i][j] for j ∈ axes(v[i],1)] for i ∈ axes(v,1)]
 end
 
+
 abstract type AbstractMethod end
 abstract type OptimMethod <: AbstractMethod end
 abstract type NLSolveMethod <: AbstractMethod end
@@ -121,7 +122,7 @@ MinimizationResult(Γ, minimizer, method, iterations, converged) = begin
    MinimizationResult(
     initial = Γ,
     fourier_coeff = Γ_min,
-    path = (reconstruct_path ∘ build_path)(Γ_min),
+    path = (symmetrize ∘ build_path)(Γ_min),
     iterations = iterations,
     gradient_norm = norm(∇action(minimizer)),
     action_value = action(minimizer),
@@ -160,3 +161,5 @@ Base.show(io::IO, result::MinimizationResult) = begin
     println(io, "\tGradient norm: \t", result.gradient_norm)
     println(io, "\tAction value: \t", result.action_value)
 end
+
+Base.zeros(T::Coefficients, size::Int64) = OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 0:size], 0:size)

@@ -93,7 +93,8 @@ perturbed_path(x::Path, λ = 0.001 )::Coefficients = x + λ * random_starting_pa
 
 perturbed_circular_starting_path(λ::Float64 = 0.001)::Coefficients = circular_starting_path() + λ * random_starting_path()
 
-function reconstruct_path(x::Path)
+
+function symmetrize(x::Path)
     n = lastindex(x)-1
     initial_path = FromZero([[zeros(dim) for i ∈ 1:N] for j ∈ 0:(2*n+1)])
     complete_path = FromZero([])
@@ -115,6 +116,30 @@ function reconstruct_path(x::Path)
     push!(complete_path, ϕg_n(initial_path[0], 1))
 
     return complete_path
+end
+
+function symmetrize(f::AbstractVector{Float64})
+    n = lastindex(f)-1
+    initial_f = FromZero(zeros(2*n+1))
+    complete_f = FromZero([])
+    initial_f[0:n+1] = copy(f[0:n+1])
+
+    if action_type == Cyclic 
+        max_index = n + 1
+    else
+        max_index = 2*n + 1 
+        for k ∈ 0:n
+            initial_f[n + k + 1] = initial_f[n - k + 1]     
+        end
+    end
+    
+    for _ ∈ 1:cyclic_order, k ∈ 0:max_index
+        push!(complete_f, initial_f[k])
+    end 
+
+    push!(complete_f, initial_f[0])
+
+    return complete_f
 end
 
 
@@ -144,4 +169,4 @@ function read_path_from_file(filename, config)
 
 end
 
- refine_path(Γ::Coefficients, n::Int = steps+1)::Path = reconstruct_path(build_path(Γ, n))
+ refine_path(Γ::Coefficients, n::Int = steps+1)::Path = symmetrize(build_path(Γ, n))

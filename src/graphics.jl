@@ -2,9 +2,9 @@
 tolatex(x::Float64) = LaTeXString(replace(string(round(x, sigdigits=6)), r"e(-?\d+)" => s"\\times 10^{\1}") )
 
 
-function show(Γ::Coefficients; period = 12.0, nsteps = 100)
+function path_animation(Γ::Coefficients; period = 12.0, nsteps = 100)
     
-    path = reconstruct_path(build_path(Γ, nsteps))
+    path = symmetrize(build_path(Γ, nsteps))
     
     theme = merge(theme_dark(), theme_latexfonts())
     set_theme!(theme)
@@ -33,20 +33,30 @@ function show(Γ::Coefficients; period = 12.0, nsteps = 100)
     Label(grid[2, 2],  ∇action_norm, halign=:left, fontsize=24, color=:white, padding=padding_right)
 
     colsize!(f.layout, 2, Relative(1/3))
-    ax = Axis(f[4,2], title="Distance between bodies", titlecolor=:white, titlesize=22, xzoomlock=true, yzoomlock=true, yrectzoom=false,xrectzoom=false)
 
+    
     l = length(path)-1
-
+    
     for i ∈ 1:N
         lines!(scene, 
-                [[path[j][i][h] for j ∈ 0:l] for h ∈ 1:dim]..., 
-                color=i, colormap=:lightrainbow, colorrange = (1,N), label="Body $i", transparency=true, ssao=true, fxaa=true, linewidth=2);
+        [[path[j][i][h] for j ∈ 0:l] for h ∈ 1:dim]..., 
+        color=i, colormap=:lightrainbow, colorrange = (1,N), label="Body $i", transparency=true, ssao=true, fxaa=true, linewidth=2);
     end
-
+    
+    ax = Axis(f[4,2], title="Distance between bodies", ylabel = L"r_{ij}", xticklabelcolor=:white, yticklabelcolor=:white, ylabelcolor=:white, titlecolor=:white, titlesize=22, xzoomlock=true, yzoomlock=true, yrectzoom=false,xrectzoom=false)
     for i ∈ 1:N-1, j ∈ i+1:N
         r_ij = [norm(path[k][i] - path[k][j]) for k ∈ 0:l]
         lines!(ax, 0:(length(r_ij)-1), r_ij, label=L"r_{%$i%$j}")
     end
+    
+    ax2 = Axis(f[3,2],  title="Energy", titlecolor=:white, xticklabelcolor=:white, yticklabelcolor=:white, ylabel=L"E", ylabelcolor=:white,  titlesize=22, xzoomlock=true, yzoomlock=true, yrectzoom=false,xrectzoom=false)
+
+    E =  symmetrize(K_energy(Γ, nsteps) - U(Γ, nsteps))
+    meanE = sum(E)/length(E)
+
+    lines!(ax2, 0:(length(E) -1), OffsetArrays.no_offset_view(E), label="K Energy", linewidth=2)
+
+    ylims!(ax2, min(E..., 0.8*meanE, 1.2*meanE), max(E..., 1.2*meanE, 0.8*meanE))
 
     Legend(f[5,2], ax,  orientation = :horizontal, labelcolor=:white, labelsize=24)
     axislegend(scene,  labelcolor=:white, labelsize=18, padding=(6.0f0, 12.0f0, 6.0f0, 6.0f0))
@@ -62,10 +72,11 @@ function show(Γ::Coefficients; period = 12.0, nsteps = 100)
     end
 
 
-    meshscatter!(scene, bodies, color=1:N, colormap=:lightrainbow, colorrange=(1,N))
+    meshscatter!(scene, bodies, color=1:N, colormap=:lightrainbow, colorrange=(1,N), markersize = 0.05)
     t = 0
     t = Observable(0)
     vlines!(ax, t, color=:red)
+    vlines!(ax2, t, color=:red)
 
 
     sliders = SliderGrid(f[2, 2], 
@@ -88,11 +99,19 @@ function show(Γ::Coefficients; period = 12.0, nsteps = 100)
     display(f,  title = "Orbit Animation")
 
     i = Observable(0)
-    register_interaction!(ax, :my_interaction) do event::MouseEvent, axis
+    register_interaction!(ax, :click_on_plot) do event::MouseEvent, axis
         if event.type === MouseEventTypes.leftclick
             t[] = round(event.data[1])
         end
     end
+
+    register_interaction!(ax2, :click_on_plot) do event::MouseEvent, axis
+        if event.type === MouseEventTypes.leftclick
+            t[] = round(event.data[1])
+        end
+    end
+
+  
     while true
         if ! events(scene).window_open[] return end
         if(t[] == length(path)) t[] = 0 end
@@ -105,3 +124,8 @@ function show(Γ::Coefficients; period = 12.0, nsteps = 100)
 
 end
 
+
+
+function plot_energy(Γ)
+
+end
