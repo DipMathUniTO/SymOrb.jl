@@ -96,6 +96,7 @@ perturbed_circular_starting_path(λ::Float64 = 0.001)::Coefficients = circular_s
 
 function symmetrize(x::Path)
     n = lastindex(x)-1
+
     initial_path = FromZero([[zeros(dim) for i ∈ 1:N] for j ∈ 0:(2*n+1)])
     complete_path = FromZero([])
     initial_path[0:n+1] = copy(x[0:n+1])
@@ -120,7 +121,8 @@ end
 
 function symmetrize(f::AbstractVector{Float64})
     n = lastindex(f)-1
-    initial_f = FromZero(zeros(2*n+1))
+
+    initial_f = FromZero(zeros(2*n+2))
     complete_f = FromZero([])
     initial_f[0:n+1] = copy(f[0:n+1])
 
