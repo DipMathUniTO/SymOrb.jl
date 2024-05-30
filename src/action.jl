@@ -219,7 +219,7 @@ end
 Compute the hessian for a given configuration ``Γ`` having an arbitrary function 
     `f(r)` at the denominator  and using  ``n`` points along the path.
 """
-HU(Γ::Coefficients, n::Int64)::AbstractVector = begin
+HU(Γ::Coefficients, n::Int64=steps+1)::AbstractVector = begin
     HU = OffsetArray([[zeros(dim,dim) for _ ∈ 1:N, _ ∈ 1:N] for _ ∈ 0:n], 0:n)
 
     x = build_path(Γ)
