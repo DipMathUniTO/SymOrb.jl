@@ -14,7 +14,7 @@ include("matrices.jl")
 include("action.jl")
 include("projectors.jl")
 
-export find_orbit, initialize_and_find_orbit, initialize
+export find_orbits, initialize_and_find_orbits, initialize
 export print_path_to_file, path_animation, refine_path, read_path_from_file
 export Newton, BFGS, ConjugateGradient, Methods
 
@@ -68,7 +68,7 @@ function find_critical_point_loop(Γ::Coefficients, methods::Methods; max_repeti
 end 
 
 
-function find_orbit(methods::Methods=Methods(BFGS()); starting_path_type::Symbol=:random, starting_path::Path=nothing, options...)
+function find_orbits(methods::Methods=Methods(BFGS()); starting_path_type::Symbol=:random, starting_path::Union{Path, Nothing}=nothing, options...)
 
     while true 
         if isnothing(starting_path)
@@ -86,20 +86,20 @@ function find_orbit(methods::Methods=Methods(BFGS()); starting_path_type::Symbol
             println(result)
         end
         
-        result = find_critical_point_loop(Γ, methods)
+        result = find_critical_point_loop(Γ, methods; options...)
         if (result.converged  || result.gradient_norm < 1e-2) && ! isnan(result.action_value) 
             print_path_to_file(result.fourier_coeff, string(result.action_value)*".txt")
         end
-        printstyled("==> Path did not converge\n\n", color=:red, bold=true)
+        printstyled("==> Optimization did not converge\n\n", color=:red, bold=true)
         
     end    
 
     return result
 end
 
-function initialize_and_find_orbit(file::String, methods::Methods=Methods(BFGS()), options...)::MinimizationResult
+function initialize_and_find_orbits(file::String, methods::Methods=Methods(BFGS()), options...)::MinimizationResult
     initialize(file)
-    find_orbit(methods, options...)
+    find_orbits(methods; options...)
 end
 
 end
