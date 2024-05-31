@@ -39,6 +39,9 @@ global H_1::G = G()
 global m::Vector{Float64} = []
 global ϵ::Float64 = 0
 global Ω::Matrix{Float64} = Matrix(undef, 0, 0)
+global f::Function = x -> x
+global df::Function = x -> 1
+global d2f::Function = x -> 0
 
 global K::OffsetMatrix = Matrix(undef, 0, 0)
 global Id = Matrix(undef, 0,0)

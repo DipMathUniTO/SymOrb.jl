@@ -1,16 +1,21 @@
 module MinPathJL
 
-using GAP, OffsetArrays, Optim, LinearAlgebra, GLMakie, NLsolve, LineSearches, ForwardDiff, LaTeXStrings
+using GAP
+using OffsetArrays, Reexport, JSON
+@reexport using LinearAlgebra
+using Optim, NLsolve, LineSearches, ForwardDiff
+using GLMakie, LaTeXStrings
 
 include("globals.jl")
 include("path.jl")
-include("initdata.jl")
+include("initialize.jl")
 include("graphics.jl")
 include("matrices.jl")
 include("action.jl")
 include("projectors.jl")
 
-export find_orbit, print_path_to_file, path_animation, refine_path, read_path_from_file
+export find_orbit, initialize_and_find_orbit, initialize
+export print_path_to_file, path_animation, refine_path, read_path_from_file
 export Newton, BFGS, ConjugateGradient, Methods
 
 check_convergence(res::Optim.OptimizationResults)::Bool = (res.x_converged || res.f_converged || res.g_converged)
@@ -29,11 +34,9 @@ function find_critical_point(Γ::Coefficients, method::OptimMethod)
     MinimizationResult(Γ, res.minimizer, method, res.iterations, check_convergence(res))
 end
 
-
-function find_critical_point_loop(Γ::Coefficients, methods::Methods; repetitions=10, perturb::Bool = false, perturbation::Float64 = 1e-3, action_threshold=2.0)::MinimizationResult
+function find_critical_point_loop(Γ::Coefficients, methods::Methods; max_repetitions::Int64=10, perturb::Bool = false, perturbation::Float64 = 1e-3, action_threshold::Float64=2.0)::MinimizationResult
     result = nothing
-    last_result = nothing
-    for i ∈ 1:repetitions
+    for i ∈ 1:max_repetitions
 
         printstyled("#$i ", color=:yellow, bold=true)
 
@@ -44,18 +47,14 @@ function find_critical_point_loop(Γ::Coefficients, methods::Methods; repetition
         end
 
         println(result)
-
-        if result.converged
-            return result
-        end
-
-        if  result.action_value < action_threshold
-            return result
+ 
+        if result.converged || result.action_value < action_threshold
+            return result 
         end
 
         println("Action value $(result.action_value) > threshold $(action_threshold)")
         
-        if i < repetitions 
+        if i < max_repetitions 
             if perturb
                 printstyled("==> Perturbing path and continuing minimization\n\n", color=:yellow, bold=true)
                 Γ = (project ∘ perturbed_path)(result.fourier_coeff, perturbation)
@@ -63,28 +62,13 @@ function find_critical_point_loop(Γ::Coefficients, methods::Methods; repetition
                 printstyled("==> Continuing minimization\n\n", color=:yellow, bold=true)
                 Γ = project(result.fourier_coeff)
             end
-            last_result = result
         end
     end
     return result
 end 
 
 
-function find_orbit(config::AbstractDict, methods=[(:BFGS, 200)]; starting_path_type=:random, starting_path=nothing, denominator=nothing, options...)
-
-    LSG_from_config(config)
-    max_repetitions = 100
-    if isnothing(denominator)
-        global f = x -> x
-        global df = x -> 1
-        global d2f = x -> 0
-    else
-        global f = denominator
-        global df = x -> ForwardDiff.derivative(denominator, x)
-        global d2f = x -> ForwardDiff.derivative(df, x)
-    end
-
-    println(methods)
+function find_orbit(methods::Methods=Methods(BFGS()); starting_path_type::Symbol=:random, starting_path::Path=nothing, options...)
 
     while true 
         if isnothing(starting_path)
@@ -98,7 +82,7 @@ function find_orbit(config::AbstractDict, methods=[(:BFGS, 200)]; starting_path_
 
         if ! isnothing(methods.init)
             printstyled("Init: ", color=:yellow, bold=true)
-            result = find_critical_point(Γ, methods.init)
+            result = find_critical_point(Γ, methods.init; options...)
             println(result)
         end
         
@@ -111,6 +95,11 @@ function find_orbit(config::AbstractDict, methods=[(:BFGS, 200)]; starting_path_
     end    
 
     return result
+end
+
+function initialize_and_find_orbit(file::String, methods::Methods=Methods(BFGS()), options...)::MinimizationResult
+    initialize(file)
+    find_orbit(methods, options...)
 end
 
 end

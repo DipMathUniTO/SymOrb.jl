@@ -20,7 +20,7 @@ function perm_from_gap(list)
 end
 
 
-function LSG_from_config(data::AbstractDict)
+function initialize(data::AbstractDict)
 
     # load GAP package
     GAP.Packages.load("$(@__DIR__)" * "/gap")
@@ -75,6 +75,14 @@ function LSG_from_config(data::AbstractDict)
         K +=  Ω2 * K_centrifugal() + Ω * K_coriolis()
     end
 
+    if haskey(data, "denominator")
+        global f = eval(Meta.parse("x -> " * data["denominator"]))
+        global df = x -> ForwardDiff.derivative(f, x)
+        global d2f = x -> ForwardDiff.derivative(df, x)
+    end
+
     return 
 end
 
+
+initialize(file::String) = initialize(JSON.parsefile(file))
