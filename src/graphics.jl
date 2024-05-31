@@ -8,7 +8,11 @@ The number is rounded to 6 significant digits.
 # Examples
 ```jldoctest
 julia> tolatex(1.23456789e-10)
-"1.234568 \\times 10^{-10}"
+L"1.234567\times 10^{-10}"
+```
+```jldoctest
+julia> tolatex(124.0)
+L"124.0"
 ```
 """
 function tolatex(x::Float64) 
