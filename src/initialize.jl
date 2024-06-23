@@ -62,7 +62,7 @@ function initialize(data::AbstractDict)
     global F = data["F"]           # number of Fourier series terms
     global steps = 2 * F           # number of steps in the discretization of time [0,1]
     global dt = π / (steps+1)      # time step
-    global Ω = hcat(data["Omega"]...)
+    global Ω = hcat(data["Omega"]...)' # angular velocity
 
     global Ω2 = Ω * Ω
     global dx_dAk = compute_dx_dAk()
@@ -70,9 +70,9 @@ function initialize(data::AbstractDict)
     global Id = [if i == j m[i] * I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N]
 
     global K = K_linear()
-    
+
     if (!iszero(Ω))
-        K +=  Ω2 * K_centrifugal() + Ω * K_coriolis()
+        K +=  K_centrifugal(Ω2) + K_coriolis(Ω)
     end
 
     if haskey(data, "denominator")

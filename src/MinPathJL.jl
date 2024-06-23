@@ -102,4 +102,24 @@ function initialize_and_find_orbits(file::String, methods::Methods=Methods(BFGS(
     find_orbits(methods; options...)
 end
 
+
+
+function minimize_lattice(f_opt, f_starting, lb, ub, n_div)
+    x0 = f_starting(lb, ub)
+    mins = f_opt(x0, lb, ub)
+
+    if n_div == 0
+        return mins
+    end
+    
+    cutoff, index  = lat.lattice(mins)
+
+    new_ub, new_lb = lat.split(lb, ub, index, cutoff)
+
+    lower_mins = minimize_lattice(f, f_starting, lb, new_ub, n_div-1)
+    upper_mins = minimize_lattice(f, f_starting, new_lb, ub, n_div-1)
+
+    return vcat(lower_mins, upper_mins)
+end
+
 end

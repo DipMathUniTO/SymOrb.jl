@@ -154,8 +154,7 @@ function print_path_to_file(Γ, filename)
     end
 end
 
-function read_path_from_file(filename, config)
-    LSG_from_config(config)
+function read_path_from_file(filename)
     Γ = FromZero([[zeros(Float64, dim) for i ∈ 1:N] for j ∈ 0:F+1])
     data = []
     open(filename, "r") do file

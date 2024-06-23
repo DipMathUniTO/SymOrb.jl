@@ -13,8 +13,8 @@ function K_linear()
 end
 
 
-function K_centrifugal()
-    K = OffsetArray(zeros(F + 2, F + 2), 0:F+1, 0:F+1)
+function K_centrifugal(Ω2)
+    K = OffsetArray([[zeros(dim, dim) for _ ∈ 1:N, _ ∈ 1:N ] for _ ∈ 0:F+1, _ ∈ 0:F+1] , 0:F+1, 0:F+1)
 
     K[0, 0]     = -π / 3.0 * Id
     K[F+1, F+1] = K[0, 0] 
@@ -23,32 +23,41 @@ function K_centrifugal()
 
     for k ∈ 1:F
         K[0, k]   = 1.0 / k * Id
-        K[k, 0]   = K[0, k]
-        K[F+1, k] = K[0, k]* (-1)^k
-        K[k, F+1] = K[F+1, k]
+        K[k, 0]   = 1.0 / k * Id 
+        K[F+1, k] = (-1)^k / k * Id
+        K[k, F+1] = (-1)^k / k * Id
         K[k, k]   = π / 2.0 * Id
+    end
+
+    for k ∈ 0:F+1, h ∈ 0:F+1, i ∈ 1:N, j ∈ 1:N
+        K[k, h][i, j] *= Ω2
     end
 
     return K
 end
 
-function K_coriolis()
-    K = OffsetArray(zeros(F + 2, F + 2), 0:F+1, 0:F+1)
+function K_coriolis(Ω)
+    K =  OffsetArray([[zeros(dim, dim) for _ ∈ 1:N, _ ∈ 1:N ] for _ ∈ 0:F+1, _ ∈ 0:F+1] , 0:F+1, 0:F+1)
 
-    K[0, F+1] = 1.0 * Id
-    K[F+1, 0] = -1 * Id
+    K[0, F+1] = -1.0 * Id
+    K[F+1, 0] = 1.0 * Id
 
-    for k ∈ 2:2:F #only the even ones
-        K[0, k] = 2.0 / (k * π) * Id
+    for k ∈ 1:F
+        K[0, k] = 2.0 * ( (-1)^k - 1) / (k * π) * Id
         K[k, 0] = - K[0, k] 
-        K[F+1, k] = K[k, 0]
+        K[F+1, k] =-  K[0, k]
         K[k, F+1] = K[0, k] 
 
-        for j ∈ 2:2:F
+        for j ∈ 1:F
             if k == j continue end
-            K[k, j] = (k^2 + j^2) / (k^2 - j^2) * Id
+            K[k, j] = 2*((-1)^(j+k) -1) *j*k / (j^2 - k^2) * Id
             K[j, k] = -K[k, j]
         end
+    end
+
+
+    for k ∈ 0:F+1, h ∈ 0:F+1, i ∈ 1:N, j ∈ 1:N
+        K[k, h][i, j] *= Ω
     end
 
     return K
