@@ -1,88 +1,80 @@
-
-GG = GAP.Globals
-g2j = GAP.gap_to_julia
-
-
 function E(n)
    return real(exp(2*π * im / n))
 end
 
-function perm_from_gap(list)
-    gs = Vector{G}()
-    for el ∈ list
-        GG.tuple = GapObj(el)
-        perm::Vector =  g2j(@gap Permuted([1 .. NOB], tuple[2]^(-1)))
-        matrix::Matrix = eval.(Meta.parse.(hcat(g2j(@gap ConvertToString(tuple[1]))...)))
-        
-        push!(gs, G(perm, matrix))
-    end
-    return gs
+"""
+    to_julia(el)
+
+Create a GroupElement from the GAP result.
+"""
+function to_julia(el)::GroupElement
+    GG.tuple = GapObj(el)
+    perm::Permutation =  g2j(@gap Permuted([1 .. NOB], tuple[2]^(-1)))
+    matrix::Rotation = eval.(Meta.parse.(hcat(g2j(@gap ConvertToString(tuple[1]))...)))  
+    return GroupElement(perm, matrix)    
 end
 
+"""
+    initialize(data::T) where {T<:AbstractDict}
 
-function initialize(data::AbstractDict)
+Initialize the problem with the data given in the dictionary.
+"""
+function initialize(data::T) where {T<:AbstractDict}
+    global N, dim, F, steps, G, m, f, K, dx_dAk
 
-    # load GAP package
-    GAP.Packages.load("$(@__DIR__)" * "/gap")
 
-    global N = data["NOB"]
-    GG.NOB = N
+    # Load GAP package
+    Packages.load("$(@__DIR__)" * "/gap")
     
-    global dim = data["dim"]
-    GG.dim = dim
-    
+    # Set up the GAP variables
+    GG.NOB = N = data["NOB"]
+    GG.dim = dim =  data["dim"]
     at = data["action_type"]
-    global action_type = ActionType(at)
+    action_type = ActionType(at)
+    GG.kern = evalstr(data["kern"])
+    GG.rotV = evalstr(data["rotV"])
+    GG.rotS = evalstr(data["rotS"])
+    GG.refV = evalstr(data["refV"])
+    GG.refS = evalstr(data["refS"])
 
-    GG.kern = GAP.evalstr(data["kern"])
-    GG.rotV = GAP.evalstr(data["rotV"])
-    GG.rotS = GAP.evalstr(data["rotS"])
-    GG.refV = GAP.evalstr(data["refV"])
-    GG.refS = GAP.evalstr(data["refS"])
-
+    # Create the GAP Symmetry Group
     GG.LSG = GG.LagSymmetryGroup(at, N, GG.kern, GG.rotV, GG.rotS, GG.refV, GG.refS)
 
-    minorb_elements = g2j(GG.MinorbInitElements(GG.LSG), recursive=false)
+    # Generate the elements of the symmetry group
+    elements = g2j(GG.MinorbInitElements(GG.LSG), recursive=false)
 
-    global is_typeR =  if dim==3 GG.IsTypeR(GG.LSG) else false end
-    global kerT = perm_from_gap(minorb_elements[1])
-    global g = perm_from_gap(minorb_elements[2])
-
-    if action_type != Cyclic
-        global H_0 = perm_from_gap([minorb_elements[3]])[1]
-        global H_1 = perm_from_gap([minorb_elements[4]])[1]
+    # Extract the elements of the symmetry group
+    kerT = to_julia.(elements[1])
+    g = to_julia.(elements[2])
+    H0, H1 = if action_type != Cyclic
+        to_julia.((elements[3], elements[4]))
     else
-        global H_0 = G()
-        global H_1 = G()
+        (GroupElement(), GroupElement())
     end
 
-    global cyclic_order = length(g)
-
-    global m = data["m"]           # the masses
-    global F = data["F"]           # number of Fourier series terms
-    global steps = 2 * F           # number of steps in the discretization of time [0,1]
-    global dt = π / (steps+1)      # time step
-    global Ω = hcat(data["Omega"]...)' # angular velocity
-
-    global Ω2 = Ω * Ω
-    global dx_dAk = compute_dx_dAk()
+    m = convert.(Float64, data["m"])    # the masses
+    F = data["F"]::Int64                # number of Fourier series terms
+    steps = 2 * F                       # number of steps in the discretization of time [0,1]    
+    dx_dAk = compute_dx_dAk(F, steps)   # the derivative of the path with respect to the Fourier coefficients
     
-    global Id = [if i == j m[i] * I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N]
-
-    global K = K_linear()
-
+    # Compute the kinetic energy matrix
+    Ω = hcat(data["Omega"]...)'         # generator of angular velocity
+    K = K_linear(N, F, dim, m)          # linear part of the kinetic energy matrix 
     if (!iszero(Ω))
-        K +=  K_centrifugal(Ω2) + K_coriolis(Ω)
+        K +=  K_centrifugal(Ω*Ω, N, F, dim, m) + K_coriolis(Ω, N, F, dim, m)
     end
 
-    if haskey(data, "denominator")
-        global f = eval(Meta.parse("x -> " * data["denominator"]))
-        global df = x -> ForwardDiff.derivative(f, x)
-        global d2f = x -> ForwardDiff.derivative(df, x)
-    end
+    # If the denominator of the potential energy is given, use it. Otherwise, use the identity function
+    f = if haskey(data, "denominator")
+            eval(Meta.parse("x -> " * data["denominator"]))
+        else 
+            x -> x
+        end
 
-    return 
+    G = SymmetryGroup(action_type, kerT, g, H0, H1)
+    return Problem(N, dim, F, steps, G, m, f, K, dx_dAk)
+
 end
 
 
-initialize(file::String) = initialize(JSON.parsefile(file))
+initialize(file::String) = initialize(parsefile(file))

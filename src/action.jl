@@ -3,14 +3,14 @@
 
 Compute the free action for a given configuration ``Γ``, without taking account the constraints.
 """
+
+
 _action(Γ::Coefficients)::Float64  =  kinetic(Γ) +  potential(Γ)
-
-
 """
-    action(Γ::Coefficients)::Float64
+action(Γ::Coefficients)::Float64
 
 Compute the constrained action for a given configuration ``Γ``.
-"""
+    """
 action(Γ::Coefficients)::Float64 = (_action ∘ project)(Γ)
 
 """ 
@@ -109,7 +109,7 @@ potential(Γ::Coefficients)::Float64 = begin
     potential += 0.5 * (V[0] + V[steps+1])
 
     # The integral is the sum of the rectangles multiplied by the width of each rectangle
-    return  potential * dt
+    return  potential * π / (steps+1)
 end
 
 """ 
@@ -118,7 +118,7 @@ end
 Compute the gradient of the potential part of the action for a given configuration ``Γ``.
 """
 ∇potential(Γ) = begin
-    ∇potential = OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 1:F+2], 0:F+1)
+    ∇potential = OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 0:F+1], 0:F+1)
 
     ∇V = ∇U(Γ)
 
@@ -136,7 +136,7 @@ Compute the gradient of the potential part of the action for a given configurati
     ∇potential[F+1] += 0.5 * ∇V[steps+1]
 
     # The integral is the sum of the rectangles multiplied by the width of each rectangle
-    return ∇potential * dt
+    return ∇potential * π / (steps+1)
 end
 
 
@@ -167,7 +167,7 @@ Hpotential(Γ::Coefficients)::AbstractMatrix = begin
     Hpotential[F+1, F+1] += 0.5 * HV[steps+1]
 
     # The integral is the sum of the rectangles multiplied by the width of each rectangle
-    return Hpotential * dt
+    return Hpotential * π / (steps+1)
 end
 
 
@@ -198,7 +198,7 @@ Compute the gradient of the potential for a given configuration ``Γ``
 
 ∇U(Γ::Coefficients, n::Int64 = steps+1)::AbstractVector = begin
     ∇U = zeros(Γ, n)
-    
+    df = x -> derivative(f, x)
     x = build_path(Γ, n)
 
     for h ∈ 0:n, i ∈ 1:N-1, j ∈ (i+1):N
@@ -221,7 +221,8 @@ Compute the hessian for a given configuration ``Γ`` having an arbitrary functio
 """
 HU(Γ::Coefficients, n::Int64=steps+1)::AbstractVector = begin
     HU = OffsetArray([[zeros(dim,dim) for _ ∈ 1:N, _ ∈ 1:N] for _ ∈ 0:n], 0:n)
-
+    df = x -> derivative(f, x)
+    d2f = x -> derivative(df, x)
     x = build_path(Γ)
 
     for h ∈ 0:n, i ∈ 1:N-1, j ∈ (i+1):N
