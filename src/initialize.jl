@@ -50,7 +50,7 @@ function initialize(data::T) where {T<:AbstractDict}
     end
 
     m = convert.(Float64, data["m"])    # the masses
-    F = data["F"]::Int64                # number of Fourier series terms
+    F = data["F"]::Int                # number of Fourier series terms
     steps = 2 * F                       # number of steps in the discretization of time [0,1]    
     dx_dAk = compute_dx_dAk(F, steps)   # the derivative of the path with respect to the Fourier coefficients
     M = [if i == j m[i] * I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N] # Masses matrix

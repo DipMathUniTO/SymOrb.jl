@@ -259,7 +259,7 @@ end
 
 Read the Fourier coefficients of a path from a file.
 """
-function read_path_from_file(filename::String, F::Int64, N::Int64, dim::Int64)::Coefficients
+function read_path_from_file(filename::String, F::Int, N::Int, dim::Int)::Coefficients
     Γ = FromZero([[zeros(Float64, dim) for i ∈ 1:N] for j ∈ 0:F+1])
     data = readdlm(filename, ' ')
 

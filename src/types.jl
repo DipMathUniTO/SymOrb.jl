@@ -5,7 +5,7 @@ const Config = Vector{Vector{Float64}}
 const Path = OffsetVector{Config}
 const Coefficients = OffsetVector{Config}
 
-const Permutation = Vector{Int64}
+const Permutation = Vector{Int}
 const Rotation = Matrix{Float64}
 
 const FromZero = Origin(0)
@@ -16,7 +16,7 @@ const FromZero = Origin(0)
 
 Multiplication of a matrix of matrices by Coefficients. It's used to multiply the kinetic energy matrix by the Fourier coefficients.
 """
-function Base.:*(M::OffsetMatrix{Matrix{Matrix{T}}}, v::Coefficients)::Coefficients where {T}
+function ⊙(M::OffsetMatrix{Matrix{Matrix{T}}}, v::Coefficients)::Coefficients where {T}
     result = [[zeros(T, length(v[j][1])) for _ ∈ 1:length(v[j])] for j ∈ axes(v, 1)]
     for h ∈ axes(M, 1), k ∈ axes(M, 2), i ∈ 1:length(v[1]), j ∈ 1:length(v[1])
         result[h][j] += M[h, k][i, j] * v[k][i]
@@ -29,7 +29,7 @@ end
 
 Multiplication of a matrix of configurations by Coefficients. It's used to multiply the transposed coefficients by the coefficients
 """
-function Base.:*(v::OffsetMatrix{Config}, w::Coefficients)
+function ⊙(v::OffsetMatrix{Config}, w::Coefficients)
     result = zero(T)
     for j ∈ axes(v, 2), k ∈ axes(w, 1), i ∈ 1:length(v[j])
         result += v[j][i] * w[k][i]
@@ -43,7 +43,7 @@ end
 
 Multiplication of a matrix by a configuration. It's used to multiply the rotation matrix by the configuration.
 """
-function Base.:*(M::Matrix, v::Config)
+function ⊙(M::Matrix, v::Config)
     return [[M * v[i][j] for j ∈ axes(v[i], 1)] for i ∈ axes(v, 1)]
 end
 
@@ -87,15 +87,16 @@ struct SymmetryGroup
     H1::GroupElement
 end
 
+const DimensionsTuple = @NamedTuple{F::Int, N::Int, dim::Int}
 
 """
 The minimization problem to be solved
 
 # Fields
-- `N::Int64`: The number of particles
-- `dim::Int64`: The dimension of the space
-- `F::Int64`: The number of Fourier series terms
-- `steps::Int64`: The number of steps in the discretization of time [0,π]
+- `N::Int`: The number of particles
+- `dim::Int`: The dimension of the space
+- `F::Int`: The number of Fourier series terms
+- `steps::Int`: The number of steps in the discretization of time [0,π]
 - `G::SymmetryGroup`: The symmetry group of the minimization problem
 - `m::Vector{Float64}`: The masses of the particles
 - `f::A`: The denominator of the potential
@@ -103,7 +104,6 @@ The minimization problem to be solved
 - `dx_dAk::OffsetVector{Vector{Float64}}`: The derivative of the path w.r.t. the Fourier coefficients
 """
 struct Problem{M<:Function}
-    dims::@NamedTuple{F::Int64, N::Int64, dim::Int64}
     G::SymmetryGroup
     m::Vector{Float64}
     f::M
@@ -120,7 +120,7 @@ macro atomic_method(type, struct_name, f_name)
     quote
         @kwdef struct $struct_name <: $type
             f_name::Symbol = $f_name
-            max_iter::Int64 = 200
+            max_iter::Int = 200
             show_trace::Bool = false
             tolerance::Float64 = 1e-8
         end
@@ -214,7 +214,7 @@ The result of a minimization
 - `initial::Coefficients`: The initial Fourier coefficients
 - `fourier_coeff::Coefficients`: The Fourier coefficients of the minimum
 - `path`: The path corresponding to the Fourier coefficients of the minimum
-- `iterations::Int64`: The number of iterations
+- `iterations::Int`: The number of iterations
 - `gradient_norm::Float64`: The norm of the gradient at the minimum
 - `action_value::Float64`: The value of the action at the minimum
 - `converged::Bool`: Whether the minimization converged
@@ -283,7 +283,7 @@ function Base.show(io::IO, result::MinimizationResult)
     println(io, "\tAction value: \t", result.action_value)
 end
 
-Base.zeros(T::Coefficients, size::Int64, N::Int64, dim::Int64) = OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 0:size], 0:size)
+Base.zeros(T::Coefficients, size::Int, N::Int, dim::Int) = OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 0:size], 0:size)
 
 
 function dims(Γ::AbstractArray{Array{Array{Float64, T}, T}, T}) where T

@@ -39,14 +39,14 @@ end
 
 Compute the kinetic part of the action for a given configuration ``Γ``.
 """
-kinetic(p::Problem, Γ::Coefficients)::Float64 = 0.5 * Γ' * (p.K * Γ)
+kinetic(p::Problem, Γ::Coefficients)::Float64 = 0.5 * Γ' ⊙ (p.K ⊙ Γ)
 
 """ 
     ∇kinetic(Γ::Coefficients)::AbstractVector
 
 Compute the gradient of the kinetic part of the action for a given configuration ``Γ``.
 """
-∇kinetic(p::Problem, Γ::Coefficients)::Coefficients = p.K * Γ
+∇kinetic(p::Problem, Γ::Coefficients)::Coefficients = p.K ⊙ Γ
 
 """ 
     Hkinetic(Γ::Coefficients)::AbstractMatrix
@@ -142,7 +142,7 @@ end
 
 
 """
-    U(Γ::Coefficients, [n::Int64 = steps+1])::AbstractVector
+    U(Γ::Coefficients, [n::Int = steps+1])::AbstractVector
 
 Compute the potential for a given configuration ``Γ`` having an arbitrary function `f(r)` 
     at the denominator  and using  ``n`` points along the path.
@@ -160,7 +160,7 @@ function U(x::Path, m::Vector{Float64}, f::Function = x -> x)::AbstractVector
 end
 
 """
-    ∇U(Γ::Coefficients, [n::Int64 = steps+1])::AbstractVector
+    ∇U(Γ::Coefficients, [n::Int = steps+1])::AbstractVector
 
 Compute the gradient of the potential for a given configuration ``Γ``
  having an arbitrary function `f(r)` at the denominator and using  ``n`` points along the path.
@@ -185,7 +185,7 @@ end
 
 
 """ 
-    HU(Γ::Coefficients, [n::Int64 = steps+1])::AbstractMatrix
+    HU(Γ::Coefficients, [n::Int = steps+1])::AbstractMatrix
 
 Compute the hessian for a given configuration ``Γ`` having an arbitrary function 
     `f(r)` at the denominator  and using  ``n`` points along the path.
@@ -214,11 +214,11 @@ end
 
 
 """
-    K_energy(Γ::Coefficients, [n::Int64 = steps+1])::AbstractVector
+    K_energy(Γ::Coefficients, [n::Int = steps+1])::AbstractVector
 
 Compute the kinetic energy for a given configuration ``Γ`` over ``n`` points along the path.
 """
-function K_energy(Γ::Coefficients, n::Int64, m::Vector{Float64})::AbstractVector
+function K_energy(Γ::Coefficients, n::Int, m::Vector{Float64})::AbstractVector
     v = zeros(Γ, n)
 
     for h ∈ 0:n

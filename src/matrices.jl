@@ -4,9 +4,9 @@
 Compute the linear part of the kinetic energy operator
 
 # Arguments
-- `N::Int64`: The number of particles
-- `F::Int64`: The number of Fourier series terms
-- `dim::Int64`: The dimension of the space
+- `N::Int`: The number of particles
+- `F::Int`: The number of Fourier series terms
+- `dim::Int`: The dimension of the space
 - `m::Matrix{Matrix{Float64}}`: The masses of the particles
 """
 function K_linear(N, F, dim, M)
@@ -31,9 +31,9 @@ Compute the centrifugal part of the kinetic energy operator
 
 # Arguments
 - `Ω2::Float64`: The square of the generator of the rotation
-- `N::Int64`: The number of particles
-- `F::Int64`: The number of Fourier series terms
-- `dim::Int64`: The dimension of the space
+- `N::Int`: The number of particles
+- `F::Int`: The number of Fourier series terms
+- `dim::Int`: The dimension of the space
 - `m::Matrix{Matrix{Float64}}`: The masses of the particles
 """
 function K_centrifugal(Ω2, N, F, dim, M)
@@ -67,9 +67,9 @@ Compute the Coriolis part of the kinetic energy operator
 
 # Arguments
 - `Ω::Float64`: The generator of the rotation
-- `N::Int64`: The number of particles
-- `F::Int64`: The number of Fourier series terms
-- `dim::Int64`: The dimension of the space
+- `N::Int`: The number of particles
+- `F::Int`: The number of Fourier series terms
+- `dim::Int`: The dimension of the space
 - `m::Matrix{Matrix{Float64}}`: The masses of the particles
 """
 function K_coriolis(Ω, N, F, dim, M)
@@ -106,8 +106,8 @@ end
 Compute the derivative of the path with respect to the Fourier coefficients
 
 # Arguments
-- `F::Int64`: The number of Fourier series terms
-- `steps::Int64`: The number of steps in the path
+- `F::Int`: The number of Fourier series terms
+- `steps::Int`: The number of steps in the path
 """
 function compute_dx_dAk(F, steps)
     dx_dAk = OffsetArray([zeros(steps) for _ in 0:F+1], 0:F+1)

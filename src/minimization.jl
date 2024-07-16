@@ -7,12 +7,12 @@ has_converged(res::Optim.OptimizationResults)::Bool = (res.x_converged || res.f_
 has_converged(res::NLsolve.SolverResults)::Bool = (res.x_converged || res.f_converged)
 
 """ 
-    perform_optimization(Γ0::Coefficients, method::NLSolveMethod)::Tuple{Coefficients, Int64, Bool}
-    perform_optimization(Γ0::Coefficients, method::OptimMethod)::Tuple{Coefficients, Int64, Bool}
+    perform_optimization(Γ0::Coefficients, method::NLSolveMethod)::Tuple{Coefficients, Int, Bool}
+    perform_optimization(Γ0::Coefficients, method::OptimMethod)::Tuple{Coefficients, Int, Bool}
 
 Wrappers around the minimization libraries
 """ 
-function perform_optimization(problem::Problem, Γ0::Coefficients, method::NLSolveMethod)::Tuple{Coefficients, Int64, Bool}
+function perform_optimization(problem::Problem, Γ0::Coefficients, method::NLSolveMethod)::Tuple{Coefficients, Int, Bool}
     dimensions = dims(Γ0)
     ∇func = x -> emboss(x, dimensions) |> (x -> ∇action(problem, x)) |> flatten
     Hfunc = x -> emboss(x, dimensions) |> (x -> Haction(problem, x)) |> flatten
@@ -20,7 +20,7 @@ function perform_optimization(problem::Problem, Γ0::Coefficients, method::NLSol
     return emboss(res.zero, dimensions), res.iterations, has_converged(res)
 end
 
-function perform_optimization(problem::Problem, Γ0::Coefficients, method::OptimMethod)::Tuple{Coefficients, Int64, Bool}
+function perform_optimization(problem::Problem, Γ0::Coefficients, method::OptimMethod)::Tuple{Coefficients, Int, Bool}
     method_callable = getfield(Optim, method.f_name)
     dimensions = dims(Γ0)
     func  = x -> emboss(x, dimensions) |> (x -> Haction(problem, x))
@@ -37,7 +37,7 @@ function show_action(show_steps, Γ)
 end
 
 """
-    new_orbit(starting_path::Coefficients, method::CompoundMethod; max_repetitions::Int64=10, perturb::Bool=false, perturbation::Float64=1e-3, action_threshold::Float64=2.0, show_steps=true)::MinimizationResult
+    new_orbit(starting_path::Coefficients, method::CompoundMethod; max_repetitions::Int=10, perturb::Bool=false, perturbation::Float64=1e-3, action_threshold::Float64=2.0, show_steps=true)::MinimizationResult
 
 Find a new orbit using the given `CompoundMethod` `method` and starting path. 
 
@@ -49,13 +49,13 @@ New methods must accept 2 arguments, the starting path and the method to use, an
 They must return a `MinimizationResult`.
 
 # Keyword Arguments
-- `max_repetitions::Int64=10`: how many times to minimize using first and second method
+- `max_repetitions::Int=10`: how many times to minimize using first and second method
 - `perturb::Bool=false`: whether to perturb the path if minimization fails 
 - `perturbation::Float64=1e-3`: the strength of the perturbation to apply to the path
 - `action_threshold::Float64=2.0`: the threshold for the action value above which to continue minimization
 - `show_steps::Bool=true`: whether to show the steps of the minimization
 """
-function new_orbit(problem, starting_path::Coefficients, method::CompoundMethod; max_repetitions::Int64=10, perturb::Bool=false, perturbation::Float64=1e-3, action_threshold::Float64=2.0, show_steps=true)::MinimizationResult
+function new_orbit(problem, starting_path::Coefficients, method::CompoundMethod; max_repetitions::Int=10, perturb::Bool=false, perturbation::Float64=1e-3, action_threshold::Float64=2.0, show_steps=true)::MinimizationResult
     Γ = project(starting_path[:])
     converged = false
     # Perform the init steps of minimization to get closer to a minimum
@@ -125,7 +125,7 @@ Find `number_of_orbits` orbits using the given `method` and starting path.
 - `print_path::Bool=true`: whether to print the path to a file
 - `options...`: additional options to pass to the optimization method
 """
-function find_orbits(problem::Problem, method::AbstractMethod=OneMethod(BFGS()), number_of_orbits::Int64=Inf; starting_path_type::Symbol=:random, starting_path::Union{Path,Nothing}=nothing, show_steps=true, print_path=true, options...)
+function find_orbits(problem::Problem, dims::DimensionsTuple, method::AbstractMethod=OneMethod(BFGS()), number_of_orbits::Int=Inf; starting_path_type::Symbol=:random, starting_path::Union{Path,Nothing}=nothing, show_steps=true, print_path=true, options...)
     # Set the correct starting path type if the starting path is user-provided
     if ! isnothing(starting_path)
         starting_path_type = :given
