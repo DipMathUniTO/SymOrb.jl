@@ -7,19 +7,18 @@ Compute the linear part of the kinetic energy operator
 - `N::Int64`: The number of particles
 - `F::Int64`: The number of Fourier series terms
 - `dim::Int64`: The dimension of the space
-- `m::Vector{Float64}`: The masses of the particles
+- `m::Matrix{Matrix{Float64}}`: The masses of the particles
 """
-function K_linear(N, F, dim, m)
+function K_linear(N, F, dim, M)
     K = OffsetArray([[zeros(dim, dim) for _ ∈ 1:N, _ ∈ 1:N ] for _ ∈ 0:F+1, _ ∈ 0:F+1] , 0:F+1, 0:F+1)
-    Id = [if i == j m[i] * I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N]
-
-    K[0, 0] = 1 / π * Id
+    
+    K[0, 0] = 1 / π * M
     K[F+1, F+1] =  K[0, 0]
     K[0, F+1]   = -K[0, 0]
     K[F+1, 0]   = -K[0, 0]
 
     for k ∈ 1:F
-        K[k, k] = π / 2.0 * k^2 * Id
+        K[k, k] = π / 2.0 * k^2 * M
     end
     return K
 end
@@ -35,23 +34,22 @@ Compute the centrifugal part of the kinetic energy operator
 - `N::Int64`: The number of particles
 - `F::Int64`: The number of Fourier series terms
 - `dim::Int64`: The dimension of the space
-- `m::Vector{Float64}`: The masses of the particles
+- `m::Matrix{Matrix{Float64}}`: The masses of the particles
 """
-function K_centrifugal(Ω2, N, F, dim, m)
+function K_centrifugal(Ω2, N, F, dim, M)
     K = OffsetArray([[zeros(dim, dim) for _ ∈ 1:N, _ ∈ 1:N ] for _ ∈ 0:F+1, _ ∈ 0:F+1] , 0:F+1, 0:F+1)
-    Id = [if i == j m[i] * I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N]
 
-    K[0, 0]     = -π / 3.0 * Id
+    K[0, 0]     = -π / 3.0 * M
     K[F+1, F+1] = K[0, 0] 
     K[0, F+1]   = K[0, 0]
     K[F+1, 0]   = K[0, 0]
 
     for k ∈ 1:F
-        K[0, k]   = 1.0 / k * Id
-        K[k, 0]   = 1.0 / k * Id 
-        K[F+1, k] = (-1)^k / k * Id
-        K[k, F+1] = (-1)^k / k * Id
-        K[k, k]   = π / 2.0 * Id
+        K[0, k]   = 1.0 / k * M
+        K[k, 0]   = 1.0 / k * M 
+        K[F+1, k] = (-1)^k / k * M
+        K[k, F+1] = (-1)^k / k * M
+        K[k, k]   = π / 2.0 * M
     end
 
     for k ∈ 0:F+1, h ∈ 0:F+1, i ∈ 1:N, j ∈ 1:N
@@ -63,7 +61,7 @@ end
 
 
 """
-    K_coriolis(Ω, N, F, dim, m)
+    K_coriolis(Ω, N, F, dim, M)
 
 Compute the Coriolis part of the kinetic energy operator
 
@@ -72,24 +70,23 @@ Compute the Coriolis part of the kinetic energy operator
 - `N::Int64`: The number of particles
 - `F::Int64`: The number of Fourier series terms
 - `dim::Int64`: The dimension of the space
-- `m::Vector{Float64}`: The masses of the particles
+- `m::Matrix{Matrix{Float64}}`: The masses of the particles
 """
-function K_coriolis(Ω, N, F, dim, m)
+function K_coriolis(Ω, N, F, dim, M)
     K =  OffsetArray([[zeros(dim, dim) for _ ∈ 1:N, _ ∈ 1:N ] for _ ∈ 0:F+1, _ ∈ 0:F+1] , 0:F+1, 0:F+1)
-    Id = [if i == j m[i] * I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N]
-
-    K[0, F+1] = -1.0 * Id
-    K[F+1, 0] = 1.0 * Id
+  
+    K[0, F+1] = -1.0 * M
+    K[F+1, 0] = 1.0 * M
 
     for k ∈ 1:F
-        K[0, k] = 2.0 * ( (-1)^k - 1) / (k * π) * Id
+        K[0, k] = 2.0 * ( (-1)^k - 1) / (k * π) * M
         K[k, 0] = - K[0, k] 
         K[F+1, k] =-  K[0, k]
         K[k, F+1] = K[0, k] 
 
         for j ∈ 1:F
             if k == j continue end
-            K[k, j] = 2*((-1)^(j+k) -1) *j*k / (j^2 - k^2) * Id
+            K[k, j] = 2*((-1)^(j+k) -1) *j*k / (j^2 - k^2) * M
             K[j, k] = -K[k, j]
         end
     end
@@ -121,4 +118,3 @@ function compute_dx_dAk(F, steps)
 
     return dx_dAk       
 end 
-     

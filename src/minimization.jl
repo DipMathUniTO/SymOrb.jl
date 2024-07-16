@@ -12,16 +12,23 @@ has_converged(res::NLsolve.SolverResults)::Bool = (res.x_converged || res.f_conv
 
 Wrappers around the minimization libraries
 """ 
-function perform_optimization(Γ0::Coefficients, method::NLSolveMethod)::Tuple{Coefficients, Int64, Bool}
-    res = nlsolve(∇action, Haction, flatten(Γ0), method=method.f_name, iterations=method.max_iter, show_trace=method.show_trace, factor=10, ftol=1e-8)
-    return emboss(res.zero), res.iterations, has_converged(res)
+function perform_optimization(problem::Problem, Γ0::Coefficients, method::NLSolveMethod)::Tuple{Coefficients, Int64, Bool}
+    dimensions = dims(Γ0)
+    ∇func = x -> emboss(x, dimensions) |> (x -> ∇action(problem, x)) |> flatten
+    Hfunc = x -> emboss(x, dimensions) |> (x -> Haction(problem, x)) |> flatten
+    res = nlsolve(∇func, Hfunc, flatten(Γ0), method=method.f_name, iterations=method.max_iter, show_trace=method.show_trace, factor=10, ftol=1e-8)
+    return emboss(res.zero, dimensions), res.iterations, has_converged(res)
 end
 
-function perform_optimization(Γ0::Coefficients, method::OptimMethod)::Tuple{Coefficients, Int64, Bool}
+function perform_optimization(problem::Problem, Γ0::Coefficients, method::OptimMethod)::Tuple{Coefficients, Int64, Bool}
     method_callable = getfield(Optim, method.f_name)
+    dimensions = dims(Γ0)
+    func  = x -> emboss(x, dimensions) |> (x -> Haction(problem, x))
+    ∇func = x -> emboss(x, dimensions) |> (x -> ∇action(problem, x)) |> flatten
+    Hfunc = x -> emboss(x, dimensions) |> (x -> Haction(problem, x)) |> flatten
     options = Options(g_tol=1e-8, iterations=method.max_iter, show_trace=method.show_trace)
-    res = optimize(action, ∇action, Haction, flatten(Γ0), method_callable(), options; inplace=false)
-    return emboss(res.minimizer), res.iterations, has_converged(res)
+    res = optimize(func, ∇func, Hfunc, flatten(Γ0), method_callable(), options; inplace=false)
+    return emboss(res.minimizer, dimensions), res.iterations, has_converged(res)
 end
 
 function show_action(show_steps, Γ)
@@ -48,7 +55,7 @@ They must return a `MinimizationResult`.
 - `action_threshold::Float64=2.0`: the threshold for the action value above which to continue minimization
 - `show_steps::Bool=true`: whether to show the steps of the minimization
 """
-function new_orbit(starting_path::Coefficients, method::CompoundMethod; max_repetitions::Int64=10, perturb::Bool=false, perturbation::Float64=1e-3, action_threshold::Float64=2.0, show_steps=true)::MinimizationResult
+function new_orbit(problem, starting_path::Coefficients, method::CompoundMethod; max_repetitions::Int64=10, perturb::Bool=false, perturbation::Float64=1e-3, action_threshold::Float64=2.0, show_steps=true)::MinimizationResult
     Γ = project(starting_path[:])
     converged = false
     # Perform the init steps of minimization to get closer to a minimum
@@ -56,7 +63,7 @@ function new_orbit(starting_path::Coefficients, method::CompoundMethod; max_repe
     if !isnothing(method.init)
         if_log(show_steps, "  Init: "; color=:yellow, bold=true)
         if_log(show_steps, method.init, "\n")
-        Γ, _, _ = perform_optimization(Γ, method.init)
+        Γ, _, _ = perform_optimization(problem, Γ, method.init)
         show_action(show_steps, Γ)
     end
 
@@ -67,7 +74,7 @@ function new_orbit(starting_path::Coefficients, method::CompoundMethod; max_repe
         # Try with the firsy optimization method (usually, first order method)
         if_log(show_steps, "     First method: "; color=:yellow, bold=true)
         if_log(show_steps, method.first, "\n")
-        Γ, _, converged = perform_optimization(Γ, method.first)
+        Γ, _, converged = perform_optimization(problem, Γ, method.first)
         show_action(show_steps, Γ)
 
         # If the method converged or the action is below the threshold, we don't need to continue
@@ -79,7 +86,7 @@ function new_orbit(starting_path::Coefficients, method::CompoundMethod; max_repe
         if !isnothing(method.second)
             if_log(show_steps, "     Second method: "; color=:yellow, bold=true)
             if_log(show_steps, method.second, "\n")
-            Γ, _, converged = perform_optimization(Γ, method.second)
+            Γ, _, converged = perform_optimization(problem, Γ, method.second)
             show_action(show_steps, Γ)
         end
 
@@ -118,7 +125,7 @@ Find `number_of_orbits` orbits using the given `method` and starting path.
 - `print_path::Bool=true`: whether to print the path to a file
 - `options...`: additional options to pass to the optimization method
 """
-function find_orbits(method::AbstractMethod=OneMethod(BFGS()), number_of_orbits::Int64=Inf; starting_path_type::Symbol=:random, starting_path::Union{Path,Nothing}=nothing, show_steps=true, print_path=true, options...)
+function find_orbits(problem::Problem, method::AbstractMethod=OneMethod(BFGS()), number_of_orbits::Int64=Inf; starting_path_type::Symbol=:random, starting_path::Union{Path,Nothing}=nothing, show_steps=true, print_path=true, options...)
     # Set the correct starting path type if the starting path is user-provided
     if ! isnothing(starting_path)
         starting_path_type = :given
@@ -131,12 +138,12 @@ function find_orbits(method::AbstractMethod=OneMethod(BFGS()), number_of_orbits:
         if_log(show_steps, "#$i: Searching new orbit...\n", color = :blue, bold = true)
         # If the starting path is not user-provided, generate it
         if starting_path_type != :given
-            starting_path = get_starting_path(starting_path_type)
+            starting_path = get_starting_path(starting_path_type, problem.dims)
         end
 
 
         # Find a new orbit
-        result = new_orbit(starting_path, method; show_steps=show_steps, options...)
+        result = new_orbit(problem, starting_path, method; show_steps=show_steps, options...)
         if_log(show_steps, result)
 
         # Check if the minimization converged and, if so, add the result to the list

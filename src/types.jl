@@ -102,14 +102,11 @@ The minimization problem to be solved
 - `K::OffsetMatrix{Matrix{Matrix{Float64}}}`: The kinetic energy matrix
 - `dx_dAk::OffsetVector{Vector{Float64}}`: The derivative of the path w.r.t. the Fourier coefficients
 """
-struct Problem
-    N::Int64
-    dim::Int64
-    F::Int64
-    steps::Int64
+struct Problem{M<:Function}
+    dims::@NamedTuple{F::Int64, N::Int64, dim::Int64}
     G::SymmetryGroup
     m::Vector{Float64}
-    f
+    f::M
     K::OffsetMatrix{Matrix{Matrix{Float64}}}
     dx_dAk::OffsetVector{Vector{Float64}}
 end
@@ -286,17 +283,12 @@ function Base.show(io::IO, result::MinimizationResult)
     println(io, "\tAction value: \t", result.action_value)
 end
 
-Base.zeros(T::Coefficients, size::Int64) = OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 0:size], 0:size)
+Base.zeros(T::Coefficients, size::Int64, N::Int64, dim::Int64) = OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 0:size], 0:size)
 
 
-# ==================== GLOBAL VARIABLES ====================
-
-global N::Int64
-global dim::Int64
-global F::Int64
-global steps::Int64
-global G::SymmetryGroup
-global m::Vector{Float64}
-global f
-global K::OffsetMatrix{Matrix{Matrix{Float64}}}
-global dx_dAk::OffsetVector{Vector{Float64}}
+function dims(Γ::AbstractArray{Array{Array{Float64, T}, T}, T}) where T
+    F = size(Γ, 1)-2
+    N = size(Γ[0], 1)
+    dim = size(Γ[0][1], 1)
+    return F, N, dim
+end

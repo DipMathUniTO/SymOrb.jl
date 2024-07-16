@@ -3,38 +3,40 @@
 
 Compute the Fourier series for a given configuration ``A`` and using ``n`` points along the path.
 """
-fourier_series(A::Coefficients, n=steps + 1)::Path = FromZero([sum(A[k] * sin(π * k * h / n) for k ∈ 1:F) for h ∈ 0:n])
+fourier_series(A::Coefficients, n)::Path = FromZero([sum(A[k] * sin(π * k * h / n) for k ∈ 1:lastindex(A)-1) for h ∈ 0:n])
 
 """
     inverse_fourier(x::Path, n=steps+1)::Coefficients
 
-Compute the inverse Fourier series for a given path ``x`` and using ``n`` points along the path.
+Compute the inverse Fourier series for a given path ``x`` obtaining ``F`` coefficients.
 """
-inverse_fourier(x::Path, n=steps + 1)::Coefficients = 2 / n * FromZero([sum(x[h] * sin(k * h * π / n) for h ∈ 1:n) for k ∈ 0:F+1])
+inverse_fourier(x::Path, F)::Coefficients = 2 / lastindex(x) * FromZero([sum(x[h] * sin(k * h * π / lastindex(x)) for h ∈ 0:lastindex(x)) for k ∈ 0:F+1])
 
 """
     segment(a::Vector{T}, b::Vector{T}, n=steps+1)::Vector{T}
 
 Compute the segment between two points ``a`` and ``b`` using ``n`` points.
 """
-segment(a, b, n=steps + 1) = FromZero([a + k * (b - a) / n for k ∈ 0:n])
+segment(a, b, n) = FromZero([a + k * (b - a) / n for k ∈ 0:n])
 
 """
     build_path(A::Coefficients, n=steps+1)::Path
 
 Build a path from the Fourier coefficients ``A`` using ``n`` points.
 """
-function build_path(A::Coefficients, n::Int=steps + 1)::Path
+function build_path(A::Coefficients, n::Int)::Path
     return segment(A[0], A[end], n) + fourier_series(A, n)
 end
 
 """
     fourier_coefficients(y::Path, n=steps+1)::Coefficients
 
-Compute the Fourier coefficients for a given path ``y`` using ``n`` points.
+Compute ``F`` Fourier coefficients for a given path ``y``.
 """
-function fourier_coefficients(y::Path, n::Int=steps + 1)::Coefficients
-    A = inverse_fourier(y - segment(y[0], y[end], n))
+function fourier_coefficients(y::Path, F::Int)::Coefficients
+    n = lastindex(y)
+    x = y - segment(y[0], y[end], n)
+    A = inverse_fourier(x, F)
     A[0] = y[0]
     A[end] = y[end]
     return A
@@ -46,7 +48,8 @@ end
 
 Convert a 1D vector ``v`` into a nested vector.
 """
-function emboss(v::Vector{T})::Coefficients where {T}
+function emboss(v::Vector{T}, dimensions)::Coefficients where {T}
+    F, N, dim = dimensions
     Γ = FromZero([[zeros(T, dim) for i ∈ 1:N] for k ∈ 0:F+1])
 
     for j ∈ 1:dim, i ∈ 1:N, k ∈ 0:F+1
@@ -61,7 +64,8 @@ end
 
 Convert a 2D matrix ``M`` into a nested matrix.
 """
-function emboss(M::Matrix{T})::OffsetArray where {T}
+function emboss(M::Matrix{T}, dimensions)::OffsetArray where {T}
+    F, N, dim = dimensions   
     H = FromZero([[zeros(T, dim, dim) for _ ∈ 1:N, _ ∈ 1:N] for _ ∈ 0:F+1, _ ∈ 0:F+1])
 
     for k1 ∈ 0:F+1, k2 ∈ 0:F+1, i1 ∈ 1:N, i2 ∈ 1:N, j1 ∈ 1:dim, j2 ∈ 1:dim
@@ -77,6 +81,7 @@ end
 Convert a nested vector ``Γ`` into a 1D vector.
 """
 function flatten(Γ::AbstractVector{Vector{Vector{T}}})::Vector{T} where {T}
+    F, N, dim = dims(Γ)
     v = zeros(T, (F + 2) * N * dim)
 
     for k ∈ 0:F+1, i ∈ 1:N, j ∈ 1:dim
@@ -93,6 +98,7 @@ end
 Convert a nested matrix ``H`` into a 2D matrix.
 """
 function flatten(H::AbstractMatrix{Matrix{Matrix{T}}})::Matrix{T} where {T}
+    F, N, dim = dims(H)
     M = zeros(T, (F + 2) * N * dim, (F + 2) * N * dim)
 
     for k1 ∈ 0:F+1, k2 ∈ 0:F+1, i1 ∈ 1:N, i2 ∈ 1:N, j1 ∈ 1:dim, j2 ∈ 1:dim
@@ -107,13 +113,13 @@ end
 
 Generate the starting path for the minimization problem according to the given ``path_type``.
 """
-function get_starting_path(path_type::Symbol)::OffsetArray
+function get_starting_path(path_type::Symbol, dimensions)::OffsetArray
     if path_type == :circular
-        return circular_starting_path()
+        return circular_starting_path(dimensions)
     elseif path_type == :perturbed_circular
-        return perturbed_circular_starting_path()
+        return perturbed_circular_starting_path(dimensions)
     else
-        return random_starting_path()
+        return random_starting_path(dimensions)
     end
 end
 
@@ -122,7 +128,8 @@ end
 
 Generate a random starting path for the minimization problem.
 """
-function random_starting_path()::OffsetArray
+function random_starting_path(dimensions)::OffsetArray
+    F, N, dim = dimensions
     FromZero([[rand(Float64, dim) .- 0.5 for i ∈ 1:N] for j ∈ 0:F+1])
 end
 
@@ -132,7 +139,9 @@ end
 
 Generate a circular starting path for the minimization problem.
 """
-function circular_starting_path()::Coefficients
+function circular_starting_path(dimensions)::Coefficients
+    F, N, dim = dimensions
+    steps = 2 * F
     x::Path = FromZero([[zeros(dim) for i ∈ 1:N] for j ∈ 0:steps+1])
 
     for h ∈ 0:steps+1, i ∈ 1:N
@@ -140,7 +149,7 @@ function circular_starting_path()::Coefficients
         x[h][i][2] = sin(h * π / (steps + 1) + (i - 1) * 2 * π / N)
     end
 
-    return (FromZero ∘ fourier_coefficients)(x)
+    return FromZero(fourier_coefficients(x, F))
 end
 
 """
@@ -148,14 +157,14 @@ end
 
 Perturb the given path ``x`` by a factor ``λ``.
 """
-perturbe_path(x::Path, λ=0.001)::Coefficients = x + λ * random_starting_path()
+perturbe_path(x::Path, λ=0.001)::Coefficients = x + λ * random_starting_path(dims(x))
 
 """
     perturbed_circular_starting_path(λ = 0.001)::Coefficients
 
 Generate a perturbed circular starting path for the minimization problem.
 """
-perturbed_circular_starting_path(λ::Float64=0.001)::Coefficients = perturbe_path(circular_starting_path(), λ)
+perturbed_circular_starting_path(dimensions, λ::Float64=0.001)::Coefficients = perturbe_path(circular_starting_path(dimensions), λ)
 
 
 """
@@ -231,6 +240,8 @@ end
 Print the Fourier coefficients of the path ``Γ`` to a file.
 """
 function print_path_to_file(Γ::Coefficients, filename::String)
+    F, N, dim = dims(Γ)
+
     data = Matrix{Float64}(undef, (length(Γ[0]) * (F + 2)), dim)
 
     for k ∈ axes(data, 1)
@@ -248,7 +259,7 @@ end
 
 Read the Fourier coefficients of a path from a file.
 """
-function read_path_from_file(filename::String)
+function read_path_from_file(filename::String, F::Int64, N::Int64, dim::Int64)::Coefficients
     Γ = FromZero([[zeros(Float64, dim) for i ∈ 1:N] for j ∈ 0:F+1])
     data = readdlm(filename, ' ')
 
