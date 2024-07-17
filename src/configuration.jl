@@ -1,23 +1,19 @@
-# TensorOperations
 struct Configuration{domain, N, V<:AbstractArray}
     parent::V
-    # TODO: add additional fields
+    offsets::NTuple{N, Int}
 end
 
-function Configuration{domain, N}(v::V) where {domain, N, V<:AbstractArray{<:Any, N}}
-    return Configuration{domain, N, V}(v)
+function Configuration{domain, N}(v::V, first_indices=ntuple(Returns(1), N)) where {domain, N, V<:AbstractArray{<:Any, N}}
+    offsets = first_indices .- ntuple(Returns(1), N)
+    return Configuration{domain, N, V}(v, offsets)
 end
 
 const Path = Configuration{:time, 3}
-const Coefficients = Configuration{:frequency, 2}
-
-# f(p::Path)
-
-# path::Configuration
-# freqs::Configuration
+const Coefficients = Configuration{:fourier,3}
+const Config = Configuration{:space, 2}
 
 function Base.getindex(c::Configuration, is...)
-    I = reverse(is)
+    I = is .- c.offsets[1:length(is)]
     # TODO: handle offset arrays here
     colons = ntuple(Returns(:), ndims(c.parent) - length(I))
     return view(c.parent, colons..., I...)
@@ -29,8 +25,8 @@ function Base.setindex!(c::Configuration, val, is...)
 end
 
 Base.parent(c::Configuration) = c.parent
-
 Base.size(c::Configuration) = size(parent(c))
+
 
 # TODO: add helpers as needed
 

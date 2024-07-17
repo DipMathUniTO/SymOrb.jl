@@ -18,8 +18,8 @@ Multiplication of a matrix of matrices by Coefficients. It's used to multiply th
 """
 function ⊙(M::OffsetMatrix{Matrix{Matrix{T}}}, v::Coefficients)::Coefficients where {T}
     result = [[zeros(T, length(v[j][1])) for _ ∈ 1:length(v[j])] for j ∈ axes(v, 1)]
-    for h ∈ axes(M, 1), k ∈ axes(M, 2), i ∈ 1:length(v[1]), j ∈ 1:length(v[1])
-        result[h][j] += M[h, k][i, j] * v[k][i]
+    for h ∈ axes(M, 1), k ∈ axes(M, 2), i ∈ axes(M[1,1], 1),  j ∈ axes(M[1,1], 2)
+        result[h][j] .+= M[h, k][i, j] * v[k][i]
     end
     return result
 end
@@ -29,10 +29,10 @@ end
 
 Multiplication of a matrix of configurations by Coefficients. It's used to multiply the transposed coefficients by the coefficients
 """
-function ⊙(v::OffsetMatrix{Config}, w::Coefficients)
-    result = zero(T)
+function ⊙(v::Coefficients, w::Coefficients)::Float64
+    result = 0
     for j ∈ axes(v, 2), k ∈ axes(w, 1), i ∈ 1:length(v[j])
-        result += v[j][i] * w[k][i]
+        result += v[j][i] ⋅ w[k][i]
     end
 
     return result

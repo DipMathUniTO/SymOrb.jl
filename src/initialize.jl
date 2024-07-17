@@ -70,7 +70,7 @@ function initialize(data::T) where {T<:AbstractDict}
         end
 
     G = SymmetryGroup(action_type, kerT, g, H0, H1)
-    return Problem( (F=F, N=N, dim=dim), G, m, f, K, dx_dAk)
+    return (F = F, N=N, dim=dim), Problem( G, m, f, K, dx_dAk)
 
 end
 

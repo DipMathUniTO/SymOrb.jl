@@ -39,7 +39,7 @@ end
 
 Compute the kinetic part of the action for a given configuration ``Γ``.
 """
-kinetic(p::Problem, Γ::Coefficients)::Float64 = 0.5 * Γ' ⊙ (p.K ⊙ Γ)
+kinetic(p::Problem, Γ::Coefficients)::Float64 = 0.5 * Γ ⊙ (p.K ⊙ Γ)
 
 """ 
     ∇kinetic(Γ::Coefficients)::AbstractVector
@@ -133,7 +133,7 @@ function Hpotential(p::Problem, Γ::Coefficients)::OffsetMatrix{Matrix{Matrix{Fl
     Hpotential[0:F+1, 0:F+1] =  [ sum((p.dx_dAk[k] .* p.dx_dAk[j]) .* HV[1:end-1]) for k ∈ 0:F+1, j ∈ 0:F+1]
 
     # The initial and final points contribute half of their value
-    Hpotential[0, 0]   += 0.5 * HV[0]
+    Hpotential[0, 0]  += 0.5 * HV[0]
     Hpotential[F+1, F+1] += 0.5 * HV[end]
 
     # The integral is the sum of the rectangles multiplied by the width of each rectangle
@@ -171,7 +171,6 @@ function ∇U(x::Coefficients, m::Vector{Float64}, f::Function = x -> x)::Abstra
     ∇U = zeros(x, steps+1, N, dim)
     df = x -> derivative(f, x)
     
-
     for h ∈ 0:steps+1, i ∈ 1:N-1, j ∈ (i+1):N
         Δx = x[h][i] - x[h][j]
         r = norm(Δx)
