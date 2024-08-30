@@ -19,7 +19,7 @@ Multiplication of a matrix of matrices by Coefficients. It's used to multiply th
 function ⊙(M::OffsetMatrix{Matrix{Matrix{T}}}, v::Coefficients)::Coefficients where {T}
     result = [[zeros(T, length(v[j][1])) for _ ∈ 1:length(v[j])] for j ∈ axes(v, 1)]
     for h ∈ axes(M, 1), k ∈ axes(M, 2), i ∈ axes(M[1,1], 1),  j ∈ axes(M[1,1], 2)
-        result[h][j] .+= M[h, k][i, j] * v[k][i]
+        result[h][j] += M[h, k][i, j] * v[k][i]
     end
     return result
 end
@@ -29,10 +29,11 @@ end
 
 Multiplication of a matrix of configurations by Coefficients. It's used to multiply the transposed coefficients by the coefficients
 """
-function ⊙(v::Coefficients, w::Coefficients)::Float64
+function ⊗(v::Coefficients, w::Coefficients)::Float64
     result = 0
-    for j ∈ axes(v, 2), k ∈ axes(w, 1), i ∈ 1:length(v[j])
-        result += v[j][i] ⋅ w[k][i]
+
+    for j ∈ axes(v, 1), k ∈ axes(w, 1), i ∈ axes(v[end], 1)
+        result += sum(v[j][i] .*  w[k][i])
     end
 
     return result
@@ -87,6 +88,12 @@ struct SymmetryGroup
     H1::GroupElement
 end
 
+cyclic_order(G::SymmetryGroup) = length(G.g)
+
+
+# ==================== PROBLEM ====================
+
+
 const DimensionsTuple = @NamedTuple{F::Int, N::Int, dim::Int}
 
 """
@@ -109,6 +116,12 @@ struct Problem{M<:Function}
     f::M
     K::OffsetMatrix{Matrix{Matrix{Float64}}}
     dx_dAk::OffsetVector{Vector{Float64}}
+end
+
+
+function Base.show(io::IO, P::Problem)
+    println(io, "\nSymmetry group: \t", P.G)
+    println(io, "Denominator: \t", P.f)
 end
 
 """
@@ -288,7 +301,8 @@ Base.zeros(T::Coefficients, size::Int, N::Int, dim::Int) = OffsetArray([[zeros(d
 
 function dims(Γ::AbstractArray{Array{Array{Float64, T}, T}, T}) where T
     F = size(Γ, 1)-2
-    N = size(Γ[0], 1)
-    dim = size(Γ[0][1], 1)
+    N = size(Γ[end], 1)
+    dim = size(Γ[end][1], 1)
     return F, N, dim
 end
+

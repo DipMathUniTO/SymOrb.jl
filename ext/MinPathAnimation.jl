@@ -1,5 +1,5 @@
 module MinPathAnimation
-using MinPath: MinPath, Coefficients, action, ∇action, K_energy, U, build_path, extend_to_period
+using SymPath: SymPath, Coefficients, action, ∇action, K_energy, U, build_path, extend_to_period
 using GLMakie, LaTeXStrings, LinearAlgebra, OffsetArrays
 
 """
@@ -44,9 +44,9 @@ show the path of the bodies, the energy of the system, the relative distance bet
 the action, the norm of the gradient of the action, and the dispersion of the energy. The animation
 will have a period of `period` seconds and path will be composed by `nsteps` steps.
 """
-function MinPath.path_animation(Γ::MinPath.Coefficients; period=12.0, nsteps=100)
+function SymPath.path_animation(P::SymPath.Problem, Γ::SymPath.Coefficients; period=12.0, nsteps=100)
     # Calculate the path from the Fourier coefficients
-    path = extend_to_period(build_path(Γ, nsteps))
+    path = extend_to_period(P, build_path(Γ, nsteps))
     l = length(path) - 1
     N = length(path[end])
     dim = length(path[end][end])
@@ -54,9 +54,9 @@ function MinPath.path_animation(Γ::MinPath.Coefficients; period=12.0, nsteps=10
     fps = length(path) / period
 
     # Compute the needed values for the plots
-    action_value = tolatex(action(Γ))
-    ∇action_norm = tolatex(norm(∇action(Γ)))
-    E = extend_to_period(K_energy(Γ, nsteps) - U(Γ, nsteps))
+    action_value = tolatex(action(P, Γ))
+    ∇action_norm = tolatex(norm(∇action(P, Γ)))
+    E = extend_to_period(P, K_energy(Γ, nsteps, P.m) - U(build_path(Γ, nsteps), P.m, P.f))
     meanE = sum(E) / length(E)
 
     # Set the theme of the window that will contain

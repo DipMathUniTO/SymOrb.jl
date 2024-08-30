@@ -50,7 +50,7 @@ function initialize(data::T) where {T<:AbstractDict}
     end
 
     m = convert.(Float64, data["m"])    # the masses
-    F = data["F"]::Int                # number of Fourier series terms
+    F = data["F"]::Int                  # number of Fourier series terms
     steps = 2 * F                       # number of steps in the discretization of time [0,1]    
     dx_dAk = compute_dx_dAk(F, steps)   # the derivative of the path with respect to the Fourier coefficients
     M = [if i == j m[i] * I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N] # Masses matrix
@@ -76,3 +76,19 @@ end
 
 
 initialize(file::String) = initialize(parsefile(file))
+
+
+function represent_G_as_matrix(g::GroupElement)
+    M = [zeros(size(g.M)) for _ in axes(g.σ, 1), _ in axes(g.σ, 1)]
+    for (ix, v) in enumerate(g.σ)
+        M[ix, v] .= g.M
+    end
+    return M
+end
+
+function π_as_matrix(H::Matrix{Matrix{Float64}})
+    d = (N = size(H, 1), dim = size(H[end, end], 1))
+    H_flat = flatten(H)
+    π_matrix = (I(size(H_flat,1)) + H_flat)/2
+    return emboss(π_matrix, d)
+end

@@ -48,7 +48,7 @@ end
 
 Convert a 1D vector ``v`` into a nested vector.
 """
-function emboss(v::Vector{T}, dimensions)::Coefficients where {T}
+function emboss(v::Vector{T}, dimensions::Union{@NamedTuple{F::Int, N::Int, dim::Int}, NTuple{3, Int64}})::Coefficients where {T}
     F, N, dim = dimensions
     Γ = FromZero([[zeros(T, dim) for i ∈ 1:N] for k ∈ 0:F+1])
 
@@ -64,7 +64,7 @@ end
 
 Convert a 2D matrix ``M`` into a nested matrix.
 """
-function emboss(M::Matrix{T}, dimensions)::OffsetArray where {T}
+function emboss(M::Matrix{T}, dimensions::Union{@NamedTuple{F::Int, N::Int, dim::Int}, NTuple{3, Int64}})::OffsetArray where {T}
     F, N, dim = dimensions   
     H = FromZero([[zeros(T, dim, dim) for _ ∈ 1:N, _ ∈ 1:N] for _ ∈ 0:F+1, _ ∈ 0:F+1])
 
@@ -91,11 +91,34 @@ function flatten(Γ::AbstractVector{Vector{Vector{T}}})::Vector{T} where {T}
     return v
 end
 
+function flatten(Γ::Vector{Vector{T}})::Vector{T} where {T}
+    F = size(Γ, 1)
+    N = size(Γ[end], 1)
+
+    v = zeros(T, F * N)
+
+    for k ∈ 1:F, i ∈ 1:N
+        v[(k-1)*N + i] = Γ[k][i]
+    end
+
+
+    return v
+end
+
+
+function emboss(v::Vector{T}, dimensions::@NamedTuple{N::Int, dim::Int}) where {T}
+    F, N = dimensions
+    Γ = [zeros(T, N) for i ∈ 1:F]
+    for k ∈ 1:F, i ∈ 1:N
+        Γ[k][i] = v[(k-1)*N + i] 
+    end
+    return Γ
+end
 
 """
     flatten(H::AbstractMatrix{Matrix{Matrix{T}}})::Matrix{T}
 
-Convert a nested matrix ``H`` into a 2D matrix.
+Convert a three-level nested matrix ``H`` into a 2D matrix.
 """
 function flatten(H::AbstractMatrix{Matrix{Matrix{T}}})::Matrix{T} where {T}
     F, N, dim = dims(H)
@@ -107,6 +130,39 @@ function flatten(H::AbstractMatrix{Matrix{Matrix{T}}})::Matrix{T} where {T}
 
     return M
 end
+
+
+
+"""
+    flatten(H::AbstractMatrix{Matrix{Matrix{T}}})::Matrix{T}
+
+Convert a two-level nested matrix ``H`` into a 2D matrix.
+"""
+function flatten(H::AbstractMatrix{Matrix{T}})::Matrix{T} where {T}
+    F = size(H, 1)
+    N = size(H[end], 1)
+
+    M = zeros(T, F * N, F * N )
+    
+    for k1 ∈ 1:F, k2 ∈ 1:F, i1 ∈ 1:N, i2 ∈ 1:N
+        M[(k1-1)*N + i1, (k2-1)*N+ i2] = H[k1, k2][i1, i2]
+    end
+
+    return M
+end
+
+function emboss(M::Matrix{T}, dimensions::@NamedTuple{N::Int, dim::Int}) where {T}
+    N, dim = dimensions
+
+    H = [zeros(dim, dim) for _ ∈ 1:N, _ ∈ 1:N]
+
+    for k1 ∈ 1:N, k2 ∈ 1:N, i1 ∈ 1:dim, i2 ∈ 1:dim
+        H[k1, k2][i1, i2] =  M[(k1-1)*dim + i1, (k2-1)*dim+ i2]
+    end
+
+    return H
+end
+
 
 """
     get_starting_path(path_type::Symbol)::OffsetArray
@@ -172,9 +228,10 @@ perturbed_circular_starting_path(dimensions, λ::Float64=0.001)::Coefficients = 
 
 Extend the path ``x`` form the fundamental domain I = [0, π] to a full period.
 """
-function extend_to_period(x::Path)::Path
+function extend_to_period(P::Problem, x::Path)::Path
 
     n = lastindex(x) - 1
+    _, N, dim = dims(x)
 
     initial_path = FromZero([[zeros(dim) for i ∈ 1:N] for j ∈ 0:(2*n+1)])
     complete_path = FromZero([])
@@ -183,22 +240,22 @@ function extend_to_period(x::Path)::Path
     initial_path[0:n+1] = copy(x[0:n+1])
 
     # The second half of the path is the reflection of the first half if the action is not Cyclic
-    if G.action_type == Cyclic
+    if P.G.action_type == Cyclic
         max_index = n + 1
     else
         max_index = 2 * n + 1
         for k ∈ 0:n
-            initial_path[n+k+1] = ϕ(G.H1, initial_path[n-k+1])
+            initial_path[n+k+1] = ϕ(P.G.H1, initial_path[n-k+1])
         end
     end
 
     # If the cyclic order `m = length(P.g)` is greater than 1, we need to add the images of the path under the group action
-    for j ∈ 1:length(G.g), k ∈ 0:max_index
-        push!(complete_path, ϕg_n(initial_path[k], j))
+    for j ∈ 1:length(P.G.g), k ∈ 0:max_index
+        push!(complete_path, ϕg_n(P.G.g, initial_path[k], j))
     end
 
     # Finally, we add the starting point of the path to close the loop
-    push!(complete_path, ϕg_n(initial_path[0], 1))
+    push!(complete_path, ϕg_n(P.G.g, initial_path[0], 1))
 
     return complete_path
 end
@@ -208,14 +265,14 @@ end
 
 Extend the function ``f`` form the fundamental domain I = [0, π] to a full period.
 """
-function extend_to_period(f::T) where {T<:AbstractVector{<:Real}}
+function extend_to_period(P::Problem, f::T) where {T<:AbstractVector{<:Real}}
     n = lastindex(f) - 1
 
     initial_f = FromZero(zeros(2 * n + 2))
     complete_f = FromZero([])
     initial_f[0:n+1] = copy(f[0:n+1])
 
-    if G.action_type == Cyclic
+    if P.G.action_type == Cyclic
         max_index = n + 1
     else
         max_index = 2 * n + 1
@@ -224,7 +281,7 @@ function extend_to_period(f::T) where {T<:AbstractVector{<:Real}}
         end
     end
 
-    for _ ∈ 1:length(G.g), k ∈ 0:max_index
+    for _ ∈ 1:length(P.G.g), k ∈ 0:max_index
         push!(complete_f, initial_f[k])
     end
 

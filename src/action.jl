@@ -39,7 +39,7 @@ end
 
 Compute the kinetic part of the action for a given configuration ``Γ``.
 """
-kinetic(p::Problem, Γ::Coefficients)::Float64 = 0.5 * Γ ⊙ (p.K ⊙ Γ)
+kinetic(p::Problem, Γ::Coefficients)::Float64 = 0.5 * Γ ⊗ (p.K ⊙ Γ)
 
 """ 
     ∇kinetic(Γ::Coefficients)::AbstractVector
@@ -71,14 +71,14 @@ function potential(p::Problem, Γ::Coefficients)::Float64
 
     # There are exactly steps+1 rectangles to integrate, each with width dt and height V[h].
     # We use the trapezoidal rule to integrate the potential energy along the path.
-    # First, integrate between 1 and steps, thus omitting the initial and final points
+    # The inner rectangles contribute twice
     potential = sum(V[1:end-1])
 
-    # The initial and final points contribute half of their value 
+    # The initial and final points contribute once
     potential += 0.5 * (V[0] + V[end])
 
     # The integral is the sum of the rectangles multiplied by the width of each rectangle
-    return  potential * π / length(V)
+    return  potential * π / lastindex(V)
 end
 
 """ 
@@ -87,8 +87,7 @@ end
 Compute the gradient of the potential part of the action for a given configuration ``Γ``.
 """
 function ∇potential(p::Problem, Γ::Coefficients)::OffsetVector{Vector{Vector{Float64}}} 
-    F, N, dim = dims(Γ)
-    ∇potential = zeros(Γ, F+1, N, dim)
+    F, _, _ = dims(Γ)
     x = build_path(Γ, 2*F+1)
     ∇V = ∇U(x, p.m, p.f)
 
@@ -99,14 +98,14 @@ function ∇potential(p::Problem, Γ::Coefficients)::OffsetVector{Vector{Vector{
     # There are exactly steps+1 rectangles to integrate, each with width dt and height ∇V[h].
 
     # First, integrate between 1 and steps, thus omitting the initial and final points
-    ∇potential[0:F+1] = [sum(∇V[1:end-1] .* p.dx_dAk[k])  for k ∈ 0:F+1]
-
+    ∇potential = [sum( ∇V[1:end-1] .* p.dx_dAk[k])  for k ∈ axes(p.dx_dAk, 1)]
+    ∇potential = FromZero(∇potential)
     # The initial and final points contribute half of their value
     ∇potential[0]   += 0.5 * ∇V[0]
-    ∇potential[F+1] += 0.5 * ∇V[end]
+    ∇potential[end] += 0.5 * ∇V[end]
 
     # The integral is the sum of the rectangles multiplied by the width of each rectangle
-    return ∇potential * π / length(∇V)
+    return ∇potential * π / lastindex(∇V)
 end
 
 
@@ -117,11 +116,11 @@ end
 Compute the Hessian of the potential part of the action for a given configuration ``Γ``.
 """
 function Hpotential(p::Problem, Γ::Coefficients)::OffsetMatrix{Matrix{Matrix{Float64}}}
-    F, N, dim = dims(Γ)
-    Hpotential = OffsetMatrix([[zeros(dim, dim) for _ ∈ 1:N, _ ∈ 1:N] for _ ∈ 1:F+2, _ ∈ 1:F+2], 0:F+1, 0:F+1)
+    F, _, _ = dims(Γ)
+
     x = build_path(Γ, 2*F+1)
     HV = HU(x, p.m, p.f)
-
+r
     # The hessian of the potential part of the action is the discrete integral along the path using the
     # rectangle rule of the hessian potential energy (∇V) times the tensor product of the derivative of the path x 
     # with respect to the Fourier coefficients Ak's (dx_dAk) with itself. 
@@ -130,11 +129,11 @@ function Hpotential(p::Problem, Γ::Coefficients)::OffsetMatrix{Matrix{Matrix{Fl
     # the path x is linear in the Fourier coefficients Ak's.
 
     # First, integrate between 1 and steps, thus omitting the initial and final points
-    Hpotential[0:F+1, 0:F+1] =  [ sum((p.dx_dAk[k] .* p.dx_dAk[j]) .* HV[1:end-1]) for k ∈ 0:F+1, j ∈ 0:F+1]
-
+    Hpotential = FromZero([ sum((p.dx_dAk[k] .* p.dx_dAk[j]) .* HV[1:end-1]) for k ∈ 0:F+1, j ∈ 0:F+1])
+    
     # The initial and final points contribute half of their value
-    Hpotential[0, 0]  += 0.5 * HV[0]
-    Hpotential[F+1, F+1] += 0.5 * HV[end]
+    Hpotential[0, 0]  .+= 0.5 * HV[0]
+    Hpotential[F+1, F+1] .+= 0.5 * HV[end]
 
     # The integral is the sum of the rectangles multiplied by the width of each rectangle
     return Hpotential * π / length(HV)
@@ -218,7 +217,9 @@ end
 Compute the kinetic energy for a given configuration ``Γ`` over ``n`` points along the path.
 """
 function K_energy(Γ::Coefficients, n::Int, m::Vector{Float64})::AbstractVector
-    v = zeros(Γ, n)
+    F, N, dim = dims(Γ)
+
+    v = OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 0:n], 0:n)
 
     for h ∈ 0:n
         v[h] = (Γ[F+1] - Γ[0])/π + sum(k * Γ[k] * cos(k * h * π/n) for k ∈ 1:F)

@@ -23,17 +23,18 @@ end
 function perform_optimization(problem::Problem, Γ0::Coefficients, method::OptimMethod)::Tuple{Coefficients, Int, Bool}
     method_callable = getfield(Optim, method.f_name)
     dimensions = dims(Γ0)
-    func  = x -> emboss(x, dimensions) |> (x -> Haction(problem, x))
+    func  = x -> emboss(x, dimensions) |> (x -> action(problem, x))
     ∇func = x -> emboss(x, dimensions) |> (x -> ∇action(problem, x)) |> flatten
     Hfunc = x -> emboss(x, dimensions) |> (x -> Haction(problem, x)) |> flatten
+
     options = Options(g_tol=1e-8, iterations=method.max_iter, show_trace=method.show_trace)
     res = optimize(func, ∇func, Hfunc, flatten(Γ0), method_callable(), options; inplace=false)
     return emboss(res.minimizer, dimensions), res.iterations, has_converged(res)
 end
 
-function show_action(show_steps, Γ)
-    if_log(show_steps, "     Action  = $(action(Γ))\n", bold = true)
-    if_log(show_steps, "     ∇action = $(norm(∇action(Γ)))\n\n", bold = true)
+function show_action(show_steps, Γ, p)
+    if_log(show_steps, "     Action  = $(action(p, Γ))\n", bold = true)
+    if_log(show_steps, "     ∇action = $(norm(∇action(p, Γ)))\n\n", bold = true)
 end
 
 """
@@ -55,16 +56,16 @@ They must return a `MinimizationResult`.
 - `action_threshold::Float64=2.0`: the threshold for the action value above which to continue minimization
 - `show_steps::Bool=true`: whether to show the steps of the minimization
 """
-function new_orbit(problem, starting_path::Coefficients, method::CompoundMethod; max_repetitions::Int=10, perturb::Bool=false, perturbation::Float64=1e-3, action_threshold::Float64=2.0, show_steps=true)::MinimizationResult
-    Γ = project(starting_path[:])
+function new_orbit(p, starting_path::Coefficients, method::CompoundMethod; max_repetitions::Int=10, perturb::Bool=false, perturbation::Float64=1e-3, action_threshold::Float64=2.0, show_steps=true)::MinimizationResult
+    Γ = project(p, starting_path[:])
     converged = false
     # Perform the init steps of minimization to get closer to a minimum
     # This is required because second order methdos (Newton) are very unstable when far away from the minimum
     if !isnothing(method.init)
         if_log(show_steps, "  Init: "; color=:yellow, bold=true)
         if_log(show_steps, method.init, "\n")
-        Γ, _, _ = perform_optimization(problem, Γ, method.init)
-        show_action(show_steps, Γ)
+        Γ, _, _ = perform_optimization(p, Γ, method.init)
+        show_action(show_steps, Γ, p)
     end
 
     # Start alternating between the first and second method
@@ -74,11 +75,11 @@ function new_orbit(problem, starting_path::Coefficients, method::CompoundMethod;
         # Try with the firsy optimization method (usually, first order method)
         if_log(show_steps, "     First method: "; color=:yellow, bold=true)
         if_log(show_steps, method.first, "\n")
-        Γ, _, converged = perform_optimization(problem, Γ, method.first)
-        show_action(show_steps, Γ)
+        Γ, _, converged = perform_optimization(p, Γ, method.first)
+        show_action(show_steps, Γ, p)
 
         # If the method converged or the action is below the threshold, we don't need to continue
-        if converged || action(Γ) < action_threshold
+        if converged || action(p, Γ) < action_threshold
             break
         end
 
@@ -87,11 +88,11 @@ function new_orbit(problem, starting_path::Coefficients, method::CompoundMethod;
             if_log(show_steps, "     Second method: "; color=:yellow, bold=true)
             if_log(show_steps, method.second, "\n")
             Γ, _, converged = perform_optimization(problem, Γ, method.second)
-            show_action(show_steps, Γ)
+            show_action(show_steps, Γ, p)
         end
 
         # If the method converged or the action is below the threshold, we don't need to continue
-        if converged || action(Γ) < action_threshold
+        if converged || action(p, Γ) < action_threshold
             break
         end
 
@@ -125,7 +126,7 @@ Find `number_of_orbits` orbits using the given `method` and starting path.
 - `print_path::Bool=true`: whether to print the path to a file
 - `options...`: additional options to pass to the optimization method
 """
-function find_orbits(problem::Problem, dims::DimensionsTuple, method::AbstractMethod=OneMethod(BFGS()), number_of_orbits::Int=Inf; starting_path_type::Symbol=:random, starting_path::Union{Path,Nothing}=nothing, show_steps=true, print_path=true, options...)
+function find_orbits(problem::Problem, dims::DimensionsTuple, method::AbstractMethod=OneMethod(BFGS()), number_of_orbits::Float64=Inf; starting_path_type::Symbol=:random, starting_path::Union{Path,Nothing}=nothing, show_steps=true, print_path=true, options...)
     # Set the correct starting path type if the starting path is user-provided
     if ! isnothing(starting_path)
         starting_path_type = :given
@@ -138,7 +139,7 @@ function find_orbits(problem::Problem, dims::DimensionsTuple, method::AbstractMe
         if_log(show_steps, "#$i: Searching new orbit...\n", color = :blue, bold = true)
         # If the starting path is not user-provided, generate it
         if starting_path_type != :given
-            starting_path = get_starting_path(starting_path_type, problem.dims)
+            starting_path = get_starting_path(starting_path_type, dims)
         end
 
 
