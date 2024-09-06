@@ -102,7 +102,7 @@ function new_orbit(p, starting_path::Vector, method::CompoundMethod; max_repetit
         end
     end
 
-    MinimizationResult(starting_path, p.Π*Γ, norm(∇action(p, Γ)), action(p, Γ), converged, method)
+    MinimizationResult(starting_path, p.Π*Γ, norm(∇action(p, Γ)), action(p, Γ), converged && action(p, Γ) > action_threshold, method)
 end
 
 """ 
@@ -121,7 +121,7 @@ Find `number_of_orbits` orbits using the given `method` and starting path.
 - `print_path::Bool=true`: whether to print the path to a file
 - `options...`: additional options to pass to the optimization method
 """
-function find_orbits(problem::Problem, dims::DimensionsTuple, method::AbstractMethod=OneMethod(BFGS()), number_of_orbits::Union{Int, Float64}=Inf; starting_path_type::Symbol=:random, starting_path::Union{Vector,Nothing}=nothing, show_steps=true, print_path=true, options...)
+function find_orbits(problem::Problem, dims::DimensionsTuple, method::AbstractMethod=OneMethod(BFGS()); number_of_orbits::Union{Int, Float64}=Inf, starting_path_type::Symbol=:random, starting_path::Union{Vector,Nothing}=nothing, show_steps=true, print_path=true, options...)
     # Set the correct starting path type if the starting path is user-provided
     if ! isnothing(starting_path)
         starting_path_type = :given
@@ -129,6 +129,8 @@ function find_orbits(problem::Problem, dims::DimensionsTuple, method::AbstractMe
 
     i = 0
     results = []
+    @show number_of_orbits
+
     
     while i < number_of_orbits
         log_if(show_steps, "#$i: Searching new orbit...\n", color = :blue, bold = true)

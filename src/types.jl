@@ -45,10 +45,7 @@ struct SymmetryGroup
     H1::GroupElement
 end
 
-
-
 cyclic_order(G::SymmetryGroup) = length(G.g)
-
 
 # ==================== PROBLEM ====================
 

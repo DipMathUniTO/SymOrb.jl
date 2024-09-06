@@ -57,7 +57,7 @@ function circular_starting_path(dimensions)::Coefficients
         x[2, i, h] = sin(h * π / (steps + 1) + (i - 1) * 2 * π / N)
     end
 
-    return FromZero(fourier_coefficients(x, F))
+    return fourier_coefficients(x, F)
 end
 
 """

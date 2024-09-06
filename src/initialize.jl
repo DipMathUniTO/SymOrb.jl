@@ -71,7 +71,7 @@ function initialize(data::T) where {T<:AbstractDict}
     G = SymmetryGroup(action_type, kerT, g, H0, H1)
     R = nth_body(m, dims)
     Ri = remove_nth_body(dims)
-    Π = R' * project(G, m, dims) * R
+    Π = Ri * project(G, m, dims) * R
     K = R' * kinetic_matrix(Ω, m, dims) * R      # Compute the kinetic energy matrix
     
     dx_dA = compute_dx_dA(F, steps)

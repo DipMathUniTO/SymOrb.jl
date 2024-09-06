@@ -4,7 +4,7 @@ function ϕ(g::GroupElement)::Matrix
     for (ix, v) in enumerate(g.σ)
         M[:, ix, :, v] .= g.M
     end
-    return reshape(M, size(M, 1) * size(M, 2), size(M, 3) * size(M, 4))
+    return reshape(M, size(M, 1) * size(M, 2), size(M, 1) * size(M, 2))
 end
 
 
@@ -47,7 +47,7 @@ function π_bc(G::SymmetryGroup, dims)::Matrix{Float64}
 
     if (G.action_type == Cyclic)
         M[:,  1 , :,  1 ] = I(N*dim)/2
-        M[:,  1 , :, F+2] = ϕg_n(G.g)[end -1] / 2
+        M[:,  1 , :, F+2] = ϕg_n(G.g)[end - 1] / 2
         M[:, F+2, :,  1 ] = ϕg_n(G.g)[1] / 2
         M[:, F+2, :, F+2] = I(N*dim)/2
     else

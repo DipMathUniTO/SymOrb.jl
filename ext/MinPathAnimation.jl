@@ -1,6 +1,6 @@
 module MinPathAnimation
-using SymPath: SymPath, Coefficients, action, ∇action, K_energy, U, build_path, extend_to_period
-using GLMakie, LaTeXStrings, LinearAlgebra, OffsetArrays
+using SymPath: SymPath, action, ∇action, K_energy, U, build_path, extend_to_period
+using GLMakie, LaTeXStrings, LinearAlgebra
 
 """
     tolatex(x::Float64)::LaTeXString

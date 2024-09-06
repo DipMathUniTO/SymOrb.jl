@@ -97,7 +97,6 @@ function ∇potential(p::Problem, Γ::Vector{T})::Vector{T} where T
 end
 
 
-
 """
     Hpotential(Γ::Coefficients)::AbstractMatrix
 
