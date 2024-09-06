@@ -6,10 +6,10 @@ using ForwardDiff: derivative
 using GAP: GapObj, gap_to_julia as g2j, @gap, evalstr, Globals as GG, Packages
 using JSON: parsefile
 using NLsolve: nlsolve, NLsolve
-using OffsetArrays: OffsetVector, OffsetMatrix, OffsetArray, Origin, no_offset_view
 using Optim: optimize, Options, Optim
 using Printf: @sprintf
-using Base: @kwdef
+using Base: @kwdef, kron
+
 
 include("types.jl")
 include("path.jl")

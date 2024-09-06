@@ -3,10 +3,10 @@ action(Γ::Coefficients)::Float64
 
 Compute the constrained action for a given configuration ``Γ``.
     """
-function action(p::Problem, Γ::Coefficients)::Float64
-    _project = x -> project(p, x)
-    _action = x ->  kinetic(p, x) +  potential(p, x)
-    (_action ∘ _project)(Γ)
+
+function action(p::Problem, Γ::Vector{T})::T where {T}
+    Γ .= p.Π * Γ
+    kinetic(p, Γ) + potential(p, Γ)    
 end
 
 
@@ -15,10 +15,9 @@ end
 
 Compute the gradient of the constrained action for a given configuration ``Γ``.
 """
-function ∇action(p::Problem, Γ::Coefficients)::Coefficients
-    _project = x -> project(p, x) 
-    _∇action = x -> ∇kinetic(p, x) + ∇potential(p, x)
-    (_project ∘ _∇action ∘ _project)(Γ)
+function ∇action(p::Problem,Γ::Vector{T})::Vector{T} where {T}
+    Γ .= p.Π * Γ
+    p.Π' * (∇kinetic(p, Γ) + ∇potential(p, Γ))
 end
 
 
@@ -27,10 +26,9 @@ end
 
 Compute the Hessian of the constrained action for a given configuration ``Γ``.
 """
-function Haction(p::Problem, Γ::Coefficients)::OffsetMatrix{Matrix{Matrix{Float64}}}
-    _project = x -> project(p, x)
-    _Haction = x -> Hkinetic(p, x) + Hpotential(p, x)
-    (_project ∘ _Haction ∘ _project)(Γ)
+function Haction(p::Problem, Γ::Vector{T})::Matrix{T} where T
+    Γ .= p.Π * Γ
+    p.Π' * (Hkinetic(p, Γ) + Hpotential(p, Γ)) * p.Π
 end
 
 
@@ -39,46 +37,41 @@ end
 
 Compute the kinetic part of the action for a given configuration ``Γ``.
 """
-kinetic(p::Problem, Γ::Coefficients)::Float64 = 0.5 * Γ ⊗ (p.K ⊙ Γ)
+function kinetic(p::Problem, Γ::Vector{T})::T where {T} 
+    0.5 * Γ' * (p.K * Γ)
+end
 
 """ 
     ∇kinetic(Γ::Coefficients)::AbstractVector
 
 Compute the gradient of the kinetic part of the action for a given configuration ``Γ``.
 """
-∇kinetic(p::Problem, Γ::Coefficients)::Coefficients = p.K ⊙ Γ
+function ∇kinetic(p::Problem, Γ::Vector{T})::Vector{T} where {T}
+    p.K * Γ
+end
 
 """ 
     Hkinetic(Γ::Coefficients)::AbstractMatrix
 
 Compute the Hessian of the kinetic part of the action for a given configuration ``Γ``.
 """
-Hkinetic(p::Problem, _::Coefficients)::OffsetMatrix{Matrix{Matrix{Float64}}} = p.K 
-
+function Hkinetic(p::Problem, _::Vector{T})::Matrix{T} where {T} 
+    p.K
+end
 
 """
     potential(Γ::Coefficients)::Float64
 
 Compute the potential part of the action for a given configuration ``Γ``.
 """
-function potential(p::Problem, Γ::Coefficients)::Float64
-    F, _, _ = dims(Γ)
-    x = build_path(Γ, 2*F+1)
-    V = U(x, p.m, p.f)
-
-    # The potential part of the action is the discrete integral along the path using the
-    # rectangle rule of the gradient potential energy (∇V) 
-
-    # There are exactly steps+1 rectangles to integrate, each with width dt and height V[h].
-    # We use the trapezoidal rule to integrate the potential energy along the path.
-    # The inner rectangles contribute twice
-    potential = sum(V[1:end-1])
-
-    # The initial and final points contribute once
-    potential += 0.5 * (V[0] + V[end])
-
-    # The integral is the sum of the rectangles multiplied by the width of each rectangle
-    return  potential * π / lastindex(V)
+function potential(p::Problem, Γ::Vector{T})::T where{T}
+    x = build_path(p, Γ)
+    Ut = U(p, x)
+    pot = zero(T)
+    for h ∈ axes(x, 3)
+        pot += p.I_factors[h] * Ut[h]
+    end
+    pot
 end
 
 """ 
@@ -86,26 +79,21 @@ end
 
 Compute the gradient of the potential part of the action for a given configuration ``Γ``.
 """
-function ∇potential(p::Problem, Γ::Coefficients)::OffsetVector{Vector{Vector{Float64}}} 
-    F, _, _ = dims(Γ)
-    x = build_path(Γ, 2*F+1)
-    ∇V = ∇U(x, p.m, p.f)
-
+function ∇potential(p::Problem, Γ::Vector{T})::Vector{T} where T 
+    x = build_path(p, Γ)
+    ∇pot = zeros(T, size(x, 1), size(x, 2), size(p.dx_dA, 2))
+    
     # The gradient of potential part of the action is the discrete integral along the path using the
     # rectangle rule of the gradient potential energy (∇V) times the derivative of the path x 
     # with respect to the Fourier coefficients Ak's (dx_dAk).
-    # We use the trapezoidal rule to integrate the potential energy along the path.
-    # There are exactly steps+1 rectangles to integrate, each with width dt and height ∇V[h].
 
-    # First, integrate between 1 and steps, thus omitting the initial and final points
-    ∇potential = [sum( ∇V[1:end-1] .* p.dx_dAk[k])  for k ∈ axes(p.dx_dAk, 1)]
-    ∇potential = FromZero(∇potential)
-    # The initial and final points contribute half of their value
-    ∇potential[0]   += 0.5 * ∇V[0]
-    ∇potential[end] += 0.5 * ∇V[end]
+    ∇U_t = ∇U(p, x)
+    
+    for k ∈ axes(p.dx_dA, 2), h ∈ axes(x, 3)
+       @views @. ∇pot[:, :, k] += p.I_factors[h] * p.dx_dA[h, k] * ∇U_t[h]
+    end
 
-    # The integral is the sum of the rectangles multiplied by the width of each rectangle
-    return ∇potential * π / lastindex(∇V)
+    p.R'*∇pot[:]
 end
 
 
@@ -115,28 +103,28 @@ end
 
 Compute the Hessian of the potential part of the action for a given configuration ``Γ``.
 """
-function Hpotential(p::Problem, Γ::Coefficients)::OffsetMatrix{Matrix{Matrix{Float64}}}
-    F, _, _ = dims(Γ)
+function Hpotential(p::Problem, Γ::Vector{T}) where T
+    
+    x = build_path(p, Γ)
+    F = size(p.dx_dA, 2)
+    dim, N, steps = size(x)
+    Hpot = zeros(T, dim, N, F, dim, N, F) 
 
-    x = build_path(Γ, 2*F+1)
-    HV = HU(x, p.m, p.f)
-r
     # The hessian of the potential part of the action is the discrete integral along the path using the
     # rectangle rule of the hessian potential energy (∇V) times the tensor product of the derivative of the path x 
     # with respect to the Fourier coefficients Ak's (dx_dAk) with itself. 
     # The second term arising from the prodduct rule, containing the second derivative of the path x 
     # with respect to the Fourier coefficients Ak's (d2x_dAk2) is zero because 
     # the path x is linear in the Fourier coefficients Ak's.
-
-    # First, integrate between 1 and steps, thus omitting the initial and final points
-    Hpotential = FromZero([ sum((p.dx_dAk[k] .* p.dx_dAk[j]) .* HV[1:end-1]) for k ∈ 0:F+1, j ∈ 0:F+1])
     
-    # The initial and final points contribute half of their value
-    Hpotential[0, 0]  .+= 0.5 * HV[0]
-    Hpotential[F+1, F+1] .+= 0.5 * HV[end]
+    HU_t = HU(p, x)
 
-    # The integral is the sum of the rectangles multiplied by the width of each rectangle
-    return Hpotential * π / length(HV)
+    for h ∈ 1:steps, k ∈ 1:F, j ∈ 1:F
+       @views @. Hpot[:, :, k, :, :, j] += HU_t[h] * p.I_factors[h] * p.dx_dA[h, k] * p.dx_dA[h, j]
+    end
+    H_pot = reshape(Hpot, dim*N*F, dim*N*F)
+
+    return p.R' * H_pot * p.R
 end
 
 
@@ -146,13 +134,12 @@ end
 Compute the potential for a given configuration ``Γ`` having an arbitrary function `f(r)` 
     at the denominator  and using  ``n`` points along the path.
 """
-function U(x::Path, m::Vector{Float64}, f::Function = x -> x)::AbstractVector 
-    steps, N, _ = dims(x)
-
-    V = OffsetArray(zeros(steps+2), 0:steps+1)
-
-    for h ∈ 0:steps+1, i ∈ 1:N-1, j ∈ (i+1):N
-        V[h] += m[i] * m[j] /  f(norm(x[h][i] - x[h][j])) 
+function U(P, x::Array{T, 3})::Vector{T} where T
+    N = size(x, 2)
+    V = zeros(T, size(x, 3))
+    for h ∈ axes(x,3), i ∈ 1:N-1, j ∈ (i+1):N
+        Δx = x[:, i, h] - x[:, j, h]
+        V[h] += P.m[i] * P.m[j] /  P.f(norm(Δx)) 
     end
 
     return V
@@ -161,21 +148,22 @@ end
 """
     ∇U(Γ::Coefficients, [n::Int = steps+1])::AbstractVector
 
-Compute the gradient of the potential for a given configuration ``Γ``
+Compute the
+    return A gradient of the potential for a given configuration ``Γ``
  having an arbitrary function `f(r)` at the denominator and using  ``n`` points along the path.
 """
-function ∇U(x::Coefficients, m::Vector{Float64}, f::Function = x -> x)::AbstractVector
-    steps, N, dim = dims(x)
-
-    ∇U = zeros(x, steps+1, N, dim)
-    df = x -> derivative(f, x)
-    
-    for h ∈ 0:steps+1, i ∈ 1:N-1, j ∈ (i+1):N
-        Δx = x[h][i] - x[h][j]
+function ∇U(P::Problem, x::Array{T, 3})::Vector{Array{T, 2}} where {T}
+    dim, N, steps  = size(x)
+    ∇U_ij = zeros(T, dim)
+    ∇U = [zeros(T, dim, N) for _ ∈ 1:size(x, 3)]
+    Δx = zeros(T, dim)
+    df = x -> derivative(P.f, x)
+    for h ∈ 1:steps, i ∈ 1:N-1, j ∈ (i+1):N
+        @. Δx = x[:, i, h] - x[:, j, h]
         r = norm(Δx)
-        ∇U_ij = - m[i] * m[j] / f(r)^2 * df(r) * Δx / r
-        ∇U[h][i] += ∇U_ij
-        ∇U[h][j] -= ∇U_ij
+        @. ∇U_ij = - P.m[i] * P.m[j] / P.f(r)^2 * df(r) * Δx / r
+        @. ∇U[h][:, i] += ∇U_ij
+        @. ∇U[h][:, j] -= ∇U_ij
     end
 
     return ∇U
@@ -188,26 +176,30 @@ end
 Compute the hessian for a given configuration ``Γ`` having an arbitrary function 
     `f(r)` at the denominator  and using  ``n`` points along the path.
 """
-function HU(x::Path, m::Vector{Float64}, f::Function = x -> x)::AbstractVector 
-    steps, N, dim = dims(x)
+function HU(P::Problem, x::Array{T, 3})::Vector{Array{T, 4}} where {T} 
+    
+    dim, N, _ = size(x)
 
-    HU = OffsetArray([[zeros(dim,dim) for _ ∈ 1:N, _ ∈ 1:N] for _ ∈ 0:steps+1], 0:steps+1)
-    df = x -> derivative(f, x)
+    HU = [zeros(T, dim, N, dim, N) for _ in axes(x, 3)]
+    df = x -> derivative(P.f, x)
     d2f = x -> derivative(df, x)
 
-    for h ∈ 0:steps+1, i ∈ 1:N-1, j ∈ (i+1):N
-        Δx = x[h][i] - x[h][j]
+    Δx = zeros(T, dim)
+    HU_ij = zeros(T, dim, dim)
+
+    for h ∈ axes(x, 3), i ∈ 1:N-1, j ∈ (i+1):N
+        @. Δx = x[:, i, h] - x[:, j, h]
         r = norm(Δx)
 
-        HU_ij = - m[i] * m[j] / (f(r) * r)^2 * ( (Δx * Δx') * ( d2f(r) - df(r)/r - 2*df(r)^2 / f(r) ) + I * df(r) * r)
+        HU_ij .= - P.m[i] * P.m[j] / (P.f(r) * r)^2 * ( (Δx * Δx') * ( d2f(r) - df(r)/r - 2*df(r)^2 / P.f(r) ) + I * df(r) * r)
 
-        HU[h][i,i] += HU_ij
-        HU[h][j,j] += HU_ij
-        HU[h][i,j] -= HU_ij
-        HU[h][j,i] -= HU_ij
+        @. HU[h][:, i, :, i] += HU_ij
+        @. HU[h][:, j, :, j] += HU_ij
+        @. HU[h][:, i, :, j] -= HU_ij
+        @. HU[h][:, j, :, i] -= HU_ij
     end 
 
-    return HU
+    HU
 end
 
 
@@ -216,16 +208,19 @@ end
 
 Compute the kinetic energy for a given configuration ``Γ`` over ``n`` points along the path.
 """
-function K_energy(Γ::Coefficients, n::Int, m::Vector{Float64})::AbstractVector
-    F, N, dim = dims(Γ)
+function K_energy(P::Problem, Γ::Vector, n::Int)::AbstractVector
+    Γ = P.R * Γ
 
-    v = OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 0:n], 0:n)
+    F = size(Γ, 1) ÷ (P.dim * P.N) - 2 
 
-    for h ∈ 0:n
-        v[h] = (Γ[F+1] - Γ[0])/π + sum(k * Γ[k] * cos(k * h * π/n) for k ∈ 1:F)
+    Γ = reshape(Γ, P.dim, P.N, F+2)
+    v = zeros(P.dim, P.N, n)
+
+    for h ∈ 1:n
+        v[:, :, h] = (Γ[:, :, end] - Γ[:, :, 1])/π + sum(k * Γ[:, :, k+1] * cos(k * (h-1) * π/(n-1)) for k ∈ 1:F)
     end
     
-    Ek = [ 0.5 * sum( m[i] * v[h][i] ⋅ v[h][i]   for i∈1:N) for h ∈ 0:n]
+    Ek = [ 0.5 * sum( P.m[i] * v[:, i, h] ⋅ v[:, i, h] for i ∈ 1:P.N) for h ∈ 1:n]
 
-    return FromZero(Ek)
+    return Ek
 end

@@ -1,5 +1,5 @@
 
-function if_log(variable, expr...; color=:normal, bold=false)
+function log_if(variable, expr...; color=:normal, bold=false)
     if variable printstyled(expr..., color=color, bold=bold) end
 end
 
@@ -12,29 +12,23 @@ has_converged(res::NLsolve.SolverResults)::Bool = (res.x_converged || res.f_conv
 
 Wrappers around the minimization libraries
 """ 
-function perform_optimization(problem::Problem, Γ0::Coefficients, method::NLSolveMethod)::Tuple{Coefficients, Int, Bool}
-    dimensions = dims(Γ0)
-    ∇func = x -> emboss(x, dimensions) |> (x -> ∇action(problem, x)) |> flatten
-    Hfunc = x -> emboss(x, dimensions) |> (x -> Haction(problem, x)) |> flatten
-    res = nlsolve(∇func, Hfunc, flatten(Γ0), method=method.f_name, iterations=method.max_iter, show_trace=method.show_trace, factor=10, ftol=1e-8)
-    return emboss(res.zero, dimensions), res.iterations, has_converged(res)
+function perform_optimization(P::Problem, Γ0::Vector, method::NLSolveMethod)::Tuple{Vector, Int, Bool}
+
+    res = nlsolve(x -> ∇action(P, x), x -> Haction(P, x), Γ0, method=method.f_name, iterations=method.max_iter, show_trace=method.show_trace, factor=10, ftol=1e-8)
+    return res.zero, res.iterations, has_converged(res)
 end
 
-function perform_optimization(problem::Problem, Γ0::Coefficients, method::OptimMethod)::Tuple{Coefficients, Int, Bool}
+function perform_optimization(P::Problem, Γ0::Vector, method::OptimMethod)::Tuple{Vector, Int, Bool}
     method_callable = getfield(Optim, method.f_name)
-    dimensions = dims(Γ0)
-    func  = x -> emboss(x, dimensions) |> (x -> action(problem, x))
-    ∇func = x -> emboss(x, dimensions) |> (x -> ∇action(problem, x)) |> flatten
-    Hfunc = x -> emboss(x, dimensions) |> (x -> Haction(problem, x)) |> flatten
-
+    
     options = Options(g_tol=1e-8, iterations=method.max_iter, show_trace=method.show_trace)
-    res = optimize(func, ∇func, Hfunc, flatten(Γ0), method_callable(), options; inplace=false)
-    return emboss(res.minimizer, dimensions), res.iterations, has_converged(res)
+    res = optimize(x-> action(P, x), x -> ∇action(P, x), x -> Haction(P, x), Γ0, method_callable(), options; inplace=false)
+    return res.minimizer, res.iterations, has_converged(res)
 end
 
 function show_action(show_steps, Γ, p)
-    if_log(show_steps, "     Action  = $(action(p, Γ))\n", bold = true)
-    if_log(show_steps, "     ∇action = $(norm(∇action(p, Γ)))\n\n", bold = true)
+    log_if(show_steps, "     Action  = $(action(p, Γ))\n", bold = true)
+    log_if(show_steps, "     ∇action = $(norm(∇action(p, Γ)))\n\n", bold = true)
 end
 
 """
@@ -56,25 +50,26 @@ They must return a `MinimizationResult`.
 - `action_threshold::Float64=2.0`: the threshold for the action value above which to continue minimization
 - `show_steps::Bool=true`: whether to show the steps of the minimization
 """
-function new_orbit(p, starting_path::Coefficients, method::CompoundMethod; max_repetitions::Int=10, perturb::Bool=false, perturbation::Float64=1e-3, action_threshold::Float64=2.0, show_steps=true)::MinimizationResult
-    Γ = project(p, starting_path[:])
+function new_orbit(p, starting_path::Vector, method::CompoundMethod; max_repetitions::Int=10, perturb::Bool=false, perturbation::Float64=1e-3, action_threshold::Float64=2.0, show_steps=true)::MinimizationResult
+    Γ = p.Π*starting_path[:]
+
     converged = false
     # Perform the init steps of minimization to get closer to a minimum
     # This is required because second order methdos (Newton) are very unstable when far away from the minimum
     if !isnothing(method.init)
-        if_log(show_steps, "  Init: "; color=:yellow, bold=true)
-        if_log(show_steps, method.init, "\n")
+        log_if(show_steps, "  Init: ", color=:yellow, bold=true)
+        log_if(show_steps, method.init, "\n")
         Γ, _, _ = perform_optimization(p, Γ, method.init)
         show_action(show_steps, Γ, p)
     end
 
     # Start alternating between the first and second method
     for i ∈ 1:max_repetitions
-        if_log(show_steps, "  #$i \n", color = :yellow, bold = true)
+        log_if(show_steps, "  #$i \n", color = :yellow, bold = true)
 
         # Try with the firsy optimization method (usually, first order method)
-        if_log(show_steps, "     First method: "; color=:yellow, bold=true)
-        if_log(show_steps, method.first, "\n")
+        log_if(show_steps,  "     First method: ", color=:yellow, bold=true)
+        log_if(show_steps, method.first, "\n")
         Γ, _, converged = perform_optimization(p, Γ, method.first)
         show_action(show_steps, Γ, p)
 
@@ -85,9 +80,9 @@ function new_orbit(p, starting_path::Coefficients, method::CompoundMethod; max_r
 
         # If a second method is provided (usually, second order method), try with it
         if !isnothing(method.second)
-            if_log(show_steps, "     Second method: "; color=:yellow, bold=true)
-            if_log(show_steps, method.second, "\n")
-            Γ, _, converged = perform_optimization(problem, Γ, method.second)
+            log_if(show_steps, "     Second method: "; color=:yellow, bold=true)
+            log_if(show_steps, method.second, "\n")
+            Γ, _, converged = perform_optimization(p, Γ, method.second)
             show_action(show_steps, Γ, p)
         end
 
@@ -102,12 +97,12 @@ function new_orbit(p, starting_path::Coefficients, method::CompoundMethod; max_r
                 Γ = perturbed_path(Γ, perturbation)
             end
             
-            Γ = project(Γ)
-            if_log(show_steps, "  ==> Continuing minimization\n\n", color = :yellow, bold = true)
+            Γ = p.Π* Γ
+            log_if(show_steps, "  ==> Continuing minimization\n\n", color = :yellow, bold = true)
         end
     end
 
-    MinimizationResult(starting_path, project(Γ), method, converged)
+    MinimizationResult(starting_path, p.Π*Γ, norm(∇action(p, Γ)), action(p, Γ), converged, method)
 end
 
 """ 
@@ -126,7 +121,7 @@ Find `number_of_orbits` orbits using the given `method` and starting path.
 - `print_path::Bool=true`: whether to print the path to a file
 - `options...`: additional options to pass to the optimization method
 """
-function find_orbits(problem::Problem, dims::DimensionsTuple, method::AbstractMethod=OneMethod(BFGS()), number_of_orbits::Float64=Inf; starting_path_type::Symbol=:random, starting_path::Union{Path,Nothing}=nothing, show_steps=true, print_path=true, options...)
+function find_orbits(problem::Problem, dims::DimensionsTuple, method::AbstractMethod=OneMethod(BFGS()), number_of_orbits::Union{Int, Float64}=Inf; starting_path_type::Symbol=:random, starting_path::Union{Vector,Nothing}=nothing, show_steps=true, print_path=true, options...)
     # Set the correct starting path type if the starting path is user-provided
     if ! isnothing(starting_path)
         starting_path_type = :given
@@ -136,27 +131,26 @@ function find_orbits(problem::Problem, dims::DimensionsTuple, method::AbstractMe
     results = []
     
     while i < number_of_orbits
-        if_log(show_steps, "#$i: Searching new orbit...\n", color = :blue, bold = true)
+        log_if(show_steps, "#$i: Searching new orbit...\n", color = :blue, bold = true)
         # If the starting path is not user-provided, generate it
         if starting_path_type != :given
             starting_path = get_starting_path(starting_path_type, dims)
         end
 
-
         # Find a new orbit
         result = new_orbit(problem, starting_path, method; show_steps=show_steps, options...)
-        if_log(show_steps, result)
+        log_if(show_steps, result)
 
         # Check if the minimization converged and, if so, add the result to the list
         if result.converged && !isnan(result.action_value) && print_path
             # Print the path to a file if required
             if print_path
-                print_path_to_file(result.fourier_coeff, @sprintf "%.5f.txt" result.action_value)
+                print_path_to_file(problem, result.fourier_coeff, @sprintf "%.5f.txt" result.action_value)
             end
-            if_log(show_steps, "==> Optimization converged\n\n", color = :green, bold = true)
+            log_if(show_steps, "==> Optimization converged\n\n", color = :green, bold = true)
             push!(results, result)
         else
-            if_log(show_steps, "==> Optimization did not converge\n\n", color = :red, bold = true)
+            log_if(show_steps, "==> Optimization did not converge\n\n", color = :red, bold = true)
         end
 
         i += 1

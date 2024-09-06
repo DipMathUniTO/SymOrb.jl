@@ -1,175 +1,27 @@
-"""
-    fourier_series(A::Coefficients, n=steps+1)::Path
-
-Compute the Fourier series for a given configuration ``A`` and using ``n`` points along the path.
-"""
-fourier_series(A::Coefficients, n)::Path = FromZero([sum(A[k] * sin(π * k * h / n) for k ∈ 1:lastindex(A)-1) for h ∈ 0:n])
-
-"""
-    inverse_fourier(x::Path, n=steps+1)::Coefficients
-
-Compute the inverse Fourier series for a given path ``x`` obtaining ``F`` coefficients.
-"""
-inverse_fourier(x::Path, F)::Coefficients = 2 / lastindex(x) * FromZero([sum(x[h] * sin(k * h * π / lastindex(x)) for h ∈ 0:lastindex(x)) for k ∈ 0:F+1])
-
-"""
-    segment(a::Vector{T}, b::Vector{T}, n=steps+1)::Vector{T}
-
-Compute the segment between two points ``a`` and ``b`` using ``n`` points.
-"""
-segment(a, b, n) = FromZero([a + k * (b - a) / n for k ∈ 0:n])
-
-"""
-    build_path(A::Coefficients, n=steps+1)::Path
-
-Build a path from the Fourier coefficients ``A`` using ``n`` points.
-"""
-function build_path(A::Coefficients, n::Int)::Path
-    return segment(A[0], A[end], n) + fourier_series(A, n)
+function build_path(P::Problem, Γ::Vector{T})::Array{T, 3} where T
+    steps = size(P.A_to_x, 1) ÷ (P.N*P.dim)
+    x = P.A_to_x * Γ
+    reshape(x, P.dim, P.N, steps)
 end
 
-"""
-    fourier_coefficients(y::Path, n=steps+1)::Coefficients
-
-Compute ``F`` Fourier coefficients for a given path ``y``.
-"""
-function fourier_coefficients(y::Path, F::Int)::Coefficients
-    n = lastindex(y)
-    x = y - segment(y[0], y[end], n)
-    A = inverse_fourier(x, F)
-    A[0] = y[0]
-    A[end] = y[end]
-    return A
+function build_path(P::Problem, Γ::Vector{T}, steps::Int64)::Array{T, 3} where T
+    F = size(Γ, 1) ÷ ((P.N-1)*P.dim) - 2
+    A_to_x = kron(compute_dx_dA(F, steps-2), I(P.dim * P.N)) * P.R
+    x = A_to_x * Γ
+    reshape(x, P.dim, P.N, steps)
 end
 
-
-"""
-    emboss(v::Vector{T})::Coefficients
-
-Convert a 1D vector ``v`` into a nested vector.
-"""
-function emboss(v::Vector{T}, dimensions::Union{@NamedTuple{F::Int, N::Int, dim::Int}, NTuple{3, Int64}})::Coefficients where {T}
-    F, N, dim = dimensions
-    Γ = FromZero([[zeros(T, dim) for i ∈ 1:N] for k ∈ 0:F+1])
-
-    for j ∈ 1:dim, i ∈ 1:N, k ∈ 0:F+1
-        Γ[k][i][j] = v[k*N*dim+(i-1)*dim+j]
-    end
-
-    return Γ
+function fourier_coefficients(P::Problem, x::Array{T, 3})::Vector{T} where T
+    steps = size(x, 3)
+    return P.x_to_A * reshape(x, P.dim*P.N*(steps), 1)
 end
-
-"""
-    emboss(M::Matrix{T})::OffsetArray
-
-Convert a 2D matrix ``M`` into a nested matrix.
-"""
-function emboss(M::Matrix{T}, dimensions::Union{@NamedTuple{F::Int, N::Int, dim::Int}, NTuple{3, Int64}})::OffsetArray where {T}
-    F, N, dim = dimensions   
-    H = FromZero([[zeros(T, dim, dim) for _ ∈ 1:N, _ ∈ 1:N] for _ ∈ 0:F+1, _ ∈ 0:F+1])
-
-    for k1 ∈ 0:F+1, k2 ∈ 0:F+1, i1 ∈ 1:N, i2 ∈ 1:N, j1 ∈ 1:dim, j2 ∈ 1:dim
-        H[k1, k2][i1, i2][j1, j2] = M[k1*N*dim+(i1-1)*dim+j1, k2*N*dim+(i2-1)*dim+j2]
-    end
-
-    return H
-end
-
-"""
-    flatten(Γ::AbstractVector{Vector{Vector{T}}})::Vector{T}
-
-Convert a nested vector ``Γ`` into a 1D vector.
-"""
-function flatten(Γ::AbstractVector{Vector{Vector{T}}})::Vector{T} where {T}
-    F, N, dim = dims(Γ)
-    v = zeros(T, (F + 2) * N * dim)
-
-    for k ∈ 0:F+1, i ∈ 1:N, j ∈ 1:dim
-        v[k*N*dim+(i-1)*dim+j] = Γ[k][i][j]
-    end
-
-    return v
-end
-
-function flatten(Γ::Vector{Vector{T}})::Vector{T} where {T}
-    F = size(Γ, 1)
-    N = size(Γ[end], 1)
-
-    v = zeros(T, F * N)
-
-    for k ∈ 1:F, i ∈ 1:N
-        v[(k-1)*N + i] = Γ[k][i]
-    end
-
-
-    return v
-end
-
-
-function emboss(v::Vector{T}, dimensions::@NamedTuple{N::Int, dim::Int}) where {T}
-    F, N = dimensions
-    Γ = [zeros(T, N) for i ∈ 1:F]
-    for k ∈ 1:F, i ∈ 1:N
-        Γ[k][i] = v[(k-1)*N + i] 
-    end
-    return Γ
-end
-
-"""
-    flatten(H::AbstractMatrix{Matrix{Matrix{T}}})::Matrix{T}
-
-Convert a three-level nested matrix ``H`` into a 2D matrix.
-"""
-function flatten(H::AbstractMatrix{Matrix{Matrix{T}}})::Matrix{T} where {T}
-    F, N, dim = dims(H)
-    M = zeros(T, (F + 2) * N * dim, (F + 2) * N * dim)
-
-    for k1 ∈ 0:F+1, k2 ∈ 0:F+1, i1 ∈ 1:N, i2 ∈ 1:N, j1 ∈ 1:dim, j2 ∈ 1:dim
-        M[k1*N*dim+(i1-1)*dim+j1, k2*N*dim+(i2-1)*dim+j2] = H[k1, k2][i1, i2][j1, j2]
-    end
-
-    return M
-end
-
-
-
-"""
-    flatten(H::AbstractMatrix{Matrix{Matrix{T}}})::Matrix{T}
-
-Convert a two-level nested matrix ``H`` into a 2D matrix.
-"""
-function flatten(H::AbstractMatrix{Matrix{T}})::Matrix{T} where {T}
-    F = size(H, 1)
-    N = size(H[end], 1)
-
-    M = zeros(T, F * N, F * N )
-    
-    for k1 ∈ 1:F, k2 ∈ 1:F, i1 ∈ 1:N, i2 ∈ 1:N
-        M[(k1-1)*N + i1, (k2-1)*N+ i2] = H[k1, k2][i1, i2]
-    end
-
-    return M
-end
-
-function emboss(M::Matrix{T}, dimensions::@NamedTuple{N::Int, dim::Int}) where {T}
-    N, dim = dimensions
-
-    H = [zeros(dim, dim) for _ ∈ 1:N, _ ∈ 1:N]
-
-    for k1 ∈ 1:N, k2 ∈ 1:N, i1 ∈ 1:dim, i2 ∈ 1:dim
-        H[k1, k2][i1, i2] =  M[(k1-1)*dim + i1, (k2-1)*dim+ i2]
-    end
-
-    return H
-end
-
 
 """
     get_starting_path(path_type::Symbol)::OffsetArray
 
 Generate the starting path for the minimization problem according to the given ``path_type``.
 """
-function get_starting_path(path_type::Symbol, dimensions)::OffsetArray
+function get_starting_path(path_type::Symbol, dimensions)::Vector
     if path_type == :circular
         return circular_starting_path(dimensions)
     elseif path_type == :perturbed_circular
@@ -184,9 +36,9 @@ end
 
 Generate a random starting path for the minimization problem.
 """
-function random_starting_path(dimensions)::OffsetArray
+function random_starting_path(dimensions)::Vector
     F, N, dim = dimensions
-    FromZero([[rand(Float64, dim) .- 0.5 for i ∈ 1:N] for j ∈ 0:F+1])
+    rand(Float64, dim * (N-1) *(F+2))
 end
 
 
@@ -196,13 +48,13 @@ end
 Generate a circular starting path for the minimization problem.
 """
 function circular_starting_path(dimensions)::Coefficients
-    F, N, dim = dimensions
+    dim, F, N = dimensions
     steps = 2 * F
-    x::Path = FromZero([[zeros(dim) for i ∈ 1:N] for j ∈ 0:steps+1])
+    x = zeros(dim, N, steps+2)
 
-    for h ∈ 0:steps+1, i ∈ 1:N
-        x[h][i][1] = cos(h * π / (steps + 1) + (i - 1) * 2 * π / N)
-        x[h][i][2] = sin(h * π / (steps + 1) + (i - 1) * 2 * π / N)
+    for h ∈ 0:steps+1, i ∈ 1:N-1
+        x[1, i, h] = cos(h * π / (steps + 1) + (i - 1) * 2 * π / N)
+        x[2, i, h] = sin(h * π / (steps + 1) + (i - 1) * 2 * π / N)
     end
 
     return FromZero(fourier_coefficients(x, F))
@@ -213,7 +65,7 @@ end
 
 Perturb the given path ``x`` by a factor ``λ``.
 """
-perturbe_path(x::Path, λ=0.001)::Coefficients = x + λ * random_starting_path(dims(x))
+perturbe_path(x, λ=0.001)::Coefficients = x + λ * random_starting_path(size(x))
 
 """
     perturbed_circular_starting_path(λ = 0.001)::Coefficients
@@ -228,34 +80,35 @@ perturbed_circular_starting_path(dimensions, λ::Float64=0.001)::Coefficients = 
 
 Extend the path ``x`` form the fundamental domain I = [0, π] to a full period.
 """
-function extend_to_period(P::Problem, x::Path)::Path
+function extend_to_period(P::Problem, x::Array{T, 3})::Array{T, 3} where T<:Real
 
-    n = lastindex(x) - 1
-    _, N, dim = dims(x)
+    dim, N, n = size(x)
 
-    initial_path = FromZero([[zeros(dim) for i ∈ 1:N] for j ∈ 0:(2*n+1)])
-    complete_path = FromZero([])
+    initial_path = zeros(dim, N, 2n-1)
+    complete_path =  zeros(dim, N, (2n-1) * cyclic_order(P.G)) 
 
     # The first half of the path is the same as the original path
-    initial_path[0:n+1] = copy(x[0:n+1])
+    initial_path[:, :, 1:n] = copy(x[:, :, 1:n])
 
+    
     # The second half of the path is the reflection of the first half if the action is not Cyclic
     if P.G.action_type == Cyclic
-        max_index = n + 1
+        max_index = n
     else
-        max_index = 2 * n + 1
-        for k ∈ 0:n
-            initial_path[n+k+1] = ϕ(P.G.H1, initial_path[n-k+1])
+        max_index = 2n - 1 
+        for k ∈ 1:n-1
+            initial_path[:, :, n+k] = reshape(ϕ(P.G.H1) * initial_path[:, :, n-k][:], dim, N)
         end
     end
 
-    # If the cyclic order `m = length(P.g)` is greater than 1, we need to add the images of the path under the group action
-    for j ∈ 1:length(P.G.g), k ∈ 0:max_index
-        push!(complete_path, ϕg_n(P.G.g, initial_path[k], j))
+    # If the cyclic order is greater than 1, we need to add the images of the path under the group action
+    for j ∈ 1:cyclic_order(P.G), k ∈ 1:max_index
+        complete_path[:, :, max_index * (j-1) + k] =  reshape(ϕg_n(P.G.g)[j] *  initial_path[:, :, k][:], dim, N)
     end
 
+
     # Finally, we add the starting point of the path to close the loop
-    push!(complete_path, ϕg_n(P.G.g, initial_path[0], 1))
+    complete_path[:, :, end] = reshape(ϕg_n(P.G.g)[1] *  initial_path[:, :, 1][:], dim, N) 
 
     return complete_path
 end
@@ -266,26 +119,27 @@ end
 Extend the function ``f`` form the fundamental domain I = [0, π] to a full period.
 """
 function extend_to_period(P::Problem, f::T) where {T<:AbstractVector{<:Real}}
-    n = lastindex(f) - 1
+    n = lastindex(f)
 
-    initial_f = FromZero(zeros(2 * n + 2))
-    complete_f = FromZero([])
-    initial_f[0:n+1] = copy(f[0:n+1])
+    initial_f = zeros(2n - 1)
+    complete_f = zeros((2n-1) * cyclic_order(P.G))
+
+    initial_f[1:n] = copy(f[1:n])
 
     if P.G.action_type == Cyclic
-        max_index = n + 1
+        max_index = n
     else
-        max_index = 2 * n + 1
-        for k ∈ 0:n
-            initial_f[n+k+1] = initial_f[n-k+1]
+        max_index = 2n-1
+        for k ∈ 1:n-1
+            initial_f[n+k] = initial_f[n-k]
         end
     end
 
-    for _ ∈ 1:length(P.G.g), k ∈ 0:max_index
-        push!(complete_f, initial_f[k])
+    for j ∈ 1:cyclic_order(P.G), k ∈ 1:max_index
+        complete_f[ max_index * (j-1) + k ] = initial_f[k]
     end
 
-    push!(complete_f, initial_f[0])
+    complete_f[end] = initial_f[1]
 
     return complete_f
 end
@@ -296,15 +150,19 @@ end
 
 Print the Fourier coefficients of the path ``Γ`` to a file.
 """
-function print_path_to_file(Γ::Coefficients, filename::String)
-    F, N, dim = dims(Γ)
+function print_path_to_file(P::Problem, Γ::Vector, filename::String)
+    Γr = P.R * Γ
+    
+    F = length(Γr) ÷ (P.N*P.dim)
 
-    data = Matrix{Float64}(undef, (length(Γ[0]) * (F + 2)), dim)
+    Γr = reshape(Γr, P.dim, P.N, F)
 
-    for k ∈ axes(data, 1)
-        h = (k - 1) % (F + 2)
-        i = div((k - 1), F + 2) + 1
-        data[k, :] = Γ[h][i]
+    data = Matrix{Float64}(undef, F*P.N, P.dim)
+
+    for k ∈ axes(data, 1)7
+        h = (k - 1) % F + 1
+        i = (k - 1) ÷ F + 1
+        data[k, :] = Γr[:, i, h]
     end
 
     writedlm(filename, data, ' ')
@@ -316,16 +174,18 @@ end
 
 Read the Fourier coefficients of a path from a file.
 """
-function read_path_from_file(filename::String, F::Int, N::Int, dim::Int)::Coefficients
-    Γ = FromZero([[zeros(Float64, dim) for i ∈ 1:N] for j ∈ 0:F+1])
+function read_path_from_file(P::Problem, filename::String)
+    
     data = readdlm(filename, ' ')
+    F = size(data, 1) ÷ P.N
+    Γ = zeros(P.dim, P.N, 26)
 
     for k in axes(data, 1)
-        h = (k - 1) % (F + 2)
-        i = div((k - 1), F + 2) + 1
-        Γ[h][i] = data[k, :]
+        h = (k - 1) % F + 1
+        i = (k - 1) ÷ F + 1
+        Γ[:, i, h] = data[k, :]
     end
-    return Γ
+    return P.Ri * Γ[:]
 end
 
 function path_animation()

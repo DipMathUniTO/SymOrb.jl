@@ -1,52 +1,9 @@
 # ==================== CONFIGURATIONS AND PATHS ====================   
 
-# Utility renaming for the types used in the MinPathJL package
-const Config = Vector{Vector{Float64}}
-const Path = OffsetVector{Config}
-const Coefficients = OffsetVector{Config}
 
 const Permutation = Vector{Int}
 const Rotation = Matrix{Float64}
 
-const FromZero = Origin(0)
-
-# Define the products used to compute the kinetic energy
-"""
-    Base.:*(M::OffsetMatrix{Matrix{Matrix{T}}}, v::Coefficients)::Coefficients where {T}
-
-Multiplication of a matrix of matrices by Coefficients. It's used to multiply the kinetic energy matrix by the Fourier coefficients.
-"""
-function ⊙(M::OffsetMatrix{Matrix{Matrix{T}}}, v::Coefficients)::Coefficients where {T}
-    result = [[zeros(T, length(v[j][1])) for _ ∈ 1:length(v[j])] for j ∈ axes(v, 1)]
-    for h ∈ axes(M, 1), k ∈ axes(M, 2), i ∈ axes(M[1,1], 1),  j ∈ axes(M[1,1], 2)
-        result[h][j] += M[h, k][i, j] * v[k][i]
-    end
-    return result
-end
-
-"""
-    Base.:*(v::OffsetMatrix{Config}, w::Coefficients)::Config
-
-Multiplication of a matrix of configurations by Coefficients. It's used to multiply the transposed coefficients by the coefficients
-"""
-function ⊗(v::Coefficients, w::Coefficients)::Float64
-    result = 0
-
-    for j ∈ axes(v, 1), k ∈ axes(w, 1), i ∈ axes(v[end], 1)
-        result += sum(v[j][i] .*  w[k][i])
-    end
-
-    return result
-end
-
-"""
-    Base.:*(M::Matrix, v::Config)::Config
-
-Multiplication of a matrix by a configuration. It's used to multiply the rotation matrix by the configuration.
-"""
-function ⊙(M::Matrix, v::Config)
-    return [[M * v[i][j] for j ∈ axes(v[i], 1)] for i ∈ axes(v, 1)]
-end
 
 # ==================== SYMMETRY GROUP ====================
 
@@ -88,6 +45,8 @@ struct SymmetryGroup
     H1::GroupElement
 end
 
+
+
 cyclic_order(G::SymmetryGroup) = length(G.g)
 
 
@@ -110,13 +69,23 @@ The minimization problem to be solved
 - `K::OffsetMatrix{Matrix{Matrix{Float64}}}`: The kinetic energy matrix
 - `dx_dAk::OffsetVector{Vector{Float64}}`: The derivative of the path w.r.t. the Fourier coefficients
 """
-struct Problem{M<:Function}
+struct Problem{M<:Function, T<:Real}
+    N::Int64
+    dim::Int64
     G::SymmetryGroup
-    m::Vector{Float64}
+    m::Vector{T}
     f::M
-    K::OffsetMatrix{Matrix{Matrix{Float64}}}
-    dx_dAk::OffsetVector{Vector{Float64}}
+    K::Matrix{T}
+    dx_dA::Matrix{T}
+    dA_dx::Matrix{T}
+    A_to_x::Matrix{T}
+    x_to_A::Matrix{T}
+    Π::Matrix{T}
+    R::Matrix{T}
+    Ri::Matrix{T}
+    I_factors::Vector{T}
 end
+
 
 
 function Base.show(io::IO, P::Problem)
@@ -219,14 +188,13 @@ end
 # ================== MINIMIZATION RESULT ==================
 
 """
-    MinimizationResult{T <: AbstractMethod}(Γ::Coefficients, Γ_min::Coefficients, method, converged)
+    MinimizationResult{T <: AbstractMethod}(    initial::Coefficients, fourier_coeff::Coefficients, gradient_norm::Float64, action_value::Float64. converged::Bool, method::T)
 
 The result of a minimization
 
 # Fields
 - `initial::Coefficients`: The initial Fourier coefficients
 - `fourier_coeff::Coefficients`: The Fourier coefficients of the minimum
-- `path`: The path corresponding to the Fourier coefficients of the minimum
 - `iterations::Int`: The number of iterations
 - `gradient_norm::Float64`: The norm of the gradient at the minimum
 - `action_value::Float64`: The value of the action at the minimum
@@ -234,55 +202,17 @@ The result of a minimization
 - `method::T`: The minimization method
 """
 @kwdef struct MinimizationResult{T <: AbstractMethod}
-    initial::Coefficients
-    fourier_coeff::Coefficients
-    path::Path
-    iterations::Union{Int, Nothing}
+    initial::Vector
+    fourier_coeff::Vector
     gradient_norm::Float64
     action_value::Float64
     converged::Bool
     method::T
 end
 
-""" 
-    MinimizationResult(Γ::Coefficients, Γ_min::Coefficients, method, converged)
-
-Create a MinimizationResult from the initial and final Fourier coefficients, the minimization method and whether it converged.
-"""
-function MinimizationResult(Γ::Coefficients, Γ_min::Coefficients, method, converged)
-    MinimizationResult(
-        initial = Γ,
-        fourier_coeff = Γ_min,
-        path = (extend_to_period ∘ build_path)(Γ_min),
-        iterations = nothing,
-        gradient_norm = norm(∇action(Γ_min)),
-        action_value = action(Γ_min),
-        converged = converged,
-        method = method
-    )
-end
 
 """
-    MinimizationResult(Γ::Coefficients, minimizer::Vector{Float64}, method, converged)
-
-Create a MinimizationResult from the initial Fourier coefficients, the final coefficients in a flattened form, 
-the minimization method and whether it converged.
-"""
-function MinimizationResult(Γ::Coefficients, minimizer::Vector{Float64}, method, converged)
-    Γ_min = (project ∘ emboss)(minimizer)
-    MinimizationResult(
-        initial = Γ,
-        fourier_coeff = Γ_min,
-        path = (extend_to_period ∘ build_path)(Γ_min),
-        iterations = NaN,
-        gradient_norm = norm(∇action(Γ_min)),
-        action_value = action(Γ_min),
-        method = method,
-        converged = converged
-    )end
-
-"""
-    MinimizationResult(Γ::Coefficients, minimizer::Vector{Float64}, method, converged)
+     Base.show(io::IO, result::MinimizationResult)
 
 Pretty-print the minimization result
 """
@@ -296,13 +226,4 @@ function Base.show(io::IO, result::MinimizationResult)
     println(io, "\tAction value: \t", result.action_value)
 end
 
-Base.zeros(T::Coefficients, size::Int, N::Int, dim::Int) = OffsetArray([[zeros(dim) for _ ∈ 1:N] for _ ∈ 0:size], 0:size)
-
-
-function dims(Γ::AbstractArray{Array{Array{Float64, T}, T}, T}) where T
-    F = size(Γ, 1)-2
-    N = size(Γ[end], 1)
-    dim = size(Γ[end][1], 1)
-    return F, N, dim
-end
 

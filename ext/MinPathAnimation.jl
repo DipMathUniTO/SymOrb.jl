@@ -36,6 +36,10 @@ function register_click_interaction!(ax::Axis, t::Observable)
     end
 end
 
+function SymPath.path_animation(P::SymPath.Problem, filename::String, opts...)
+    Γ = SymPath.read_path_from_file(P, filename)
+    SymPath.path_animation(P, Γ; opts...)
+end
 """
     path_animation(Γ::Coefficients; [period = 12.0, nsteps = 100])
 
@@ -44,19 +48,21 @@ show the path of the bodies, the energy of the system, the relative distance bet
 the action, the norm of the gradient of the action, and the dispersion of the energy. The animation
 will have a period of `period` seconds and path will be composed by `nsteps` steps.
 """
-function SymPath.path_animation(P::SymPath.Problem, Γ::SymPath.Coefficients; period=12.0, nsteps=100)
+function SymPath.path_animation(P::SymPath.Problem, Γ::Vector; period=12.0, nsteps=100)
     # Calculate the path from the Fourier coefficients
-    path = extend_to_period(P, build_path(Γ, nsteps))
-    l = length(path) - 1
-    N = length(path[end])
-    dim = length(path[end][end])
+    x = build_path(P, Γ, nsteps)
+    path = extend_to_period(P, x)
+    dim, N, l = size(path)
+    
     # Calculate the fps of the animation
-    fps = length(path) / period
+    fps = size(path, 3) / period
 
     # Compute the needed values for the plots
     action_value = tolatex(action(P, Γ))
     ∇action_norm = tolatex(norm(∇action(P, Γ)))
-    E = extend_to_period(P, K_energy(Γ, nsteps, P.m) - U(build_path(Γ, nsteps), P.m, P.f))
+
+    E_I =  K_energy(P, Γ, nsteps) - U(P, build_path(P, Γ, nsteps))
+    E = extend_to_period(P, E_I)
     meanE = sum(E) / length(E)
 
     # Set the theme of the window that will contain
@@ -77,7 +83,7 @@ function SymPath.path_animation(P::SymPath.Problem, Γ::SymPath.Coefficients; pe
     # Plot the path
     for i ∈ 1:N
         lines!(scene,
-            [[path[j][i][h] for j ∈ 0:l] for h ∈ 1:dim]...,
+            [[path[h, i, j] for j ∈ 1:l] for h ∈ 1:dim]...,
             color=i, colormap=:lightrainbow, colorrange=(1, N),
             label="Body $i", transparency=true, ssao=true, fxaa=true, linewidth=2)
     end
@@ -146,21 +152,21 @@ function SymPath.path_animation(P::SymPath.Problem, Γ::SymPath.Coefficients; pe
         xzoomlock=true, yzoomlock=true, yrectzoom=false, xrectzoom=false)
 
     # Plot the energy
-    lines!(ax_energy, 0:l, OffsetArrays.no_offset_view(E), label="K Energy", linewidth=2)
+    lines!(ax_energy, 1:l, E, label="K Energy", linewidth=2)
     # Make sure thay y-scale isn't too narrow
     ylims!(ax_energy, min(E..., 0.8 * meanE, 1.2 * meanE), max(E..., 1.2 * meanE, 0.8 * meanE))
 
     # Plot the relative distance
     for i ∈ 1:N-1, j ∈ i+1:N
-        r_ij = [norm(path[k][i] - path[k][j]) for k ∈ 0:l]
-        lines!(ax_rij, 0:l, r_ij, label=L"r_{%$i%$j}")
+        r_ij = [norm(path[:, i, k] - path[:, j, k]) for k ∈ 1:l]
+        lines!(ax_rij, 1:l, r_ij, label=L"r_{%$i%$j}")
     end
 
     # Add the legend
     Legend(f[5, 2], ax_rij, orientation=:horizontal, labelcolor=:white, labelsize=24)
 
     # Define the time variable that is an observable, so that the plots can be updated
-    t = Observable(0)
+    t = Observable(1)
 
     # Register the click interaction for the plots: when the user clicks on the plot,
     # the animation will jump to the time where the user clicked
@@ -182,18 +188,19 @@ function SymPath.path_animation(P::SymPath.Problem, Γ::SymPath.Coefficients; pe
         end
 
         # If the end of the path is reached, start again
-        if (t[] == length(path))
-            t[] = 0
+        if (t[] >= size(path, 3)) || (t[] < 1)
+            t[] = 1
         end
 
+
         # Assign the position of the bodies at the time t to the Observable
-        bodies[] = path[t[]]
+        bodies[] = eachcol(path[:, :, t[]])
 
         # Update the time
         t[] += 1
 
         # Update the fps according to the speed slider
-        fps = length(path) / period * 10^(sliders.sliders[1].value[])
+        fps = size(path, 3) / period * 10^(sliders.sliders[1].value[])
 
         # Wait for the next frame
         sleep(1.0 / fps)

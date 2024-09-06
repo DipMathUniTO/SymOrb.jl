@@ -51,44 +51,41 @@ function initialize(data::T) where {T<:AbstractDict}
 
     m = convert.(Float64, data["m"])    # the masses
     F = data["F"]::Int                  # number of Fourier series terms
-    steps = 2 * F                       # number of steps in the discretization of time [0,1]    
-    dx_dAk = compute_dx_dAk(F, steps)   # the derivative of the path with respect to the Fourier coefficients
-    M = [if i == j m[i] * I(dim) else zeros(dim, dim) end for i in 1:N, j in 1:N] # Masses matrix
-    
-    # Compute the kinetic energy matrix
-    Ω = hcat(data["Omega"]...)'         # generator of angular velocity
-    K = K_linear(N, F, dim, M)          # linear part of the kinetic energy matrix 
-    if (!iszero(Ω))
-        K +=  K_centrifugal(Ω*Ω, N, F, dim, M) + K_coriolis(Ω, N, F, dim, M)
-    end
+    dims = (F = F, N=N, dim=dim)
+    steps = if haskey(data, "steps")   # number of steps in the discretization of time [0,π]    
+        data["steps"]::Int
+    else
+        2 * F
+    end            
 
+    Ω = hcat(data["Omega"]...)'         # generator of angular velocity
+ 
+    
     # If the denominator of the potential energy is given, use it. Otherwise, use the identity function
     f = if haskey(data, "denominator")
-            eval(Meta.parse("x -> " * data["denominator"]))
-        else 
-            x -> x
-        end
-
+        eval(Meta.parse("x -> " * data["denominator"]))
+    else 
+        x -> x
+    end
+    
     G = SymmetryGroup(action_type, kerT, g, H0, H1)
-    return (F = F, N=N, dim=dim), Problem( G, m, f, K, dx_dAk)
+    R = nth_body(m, dims)
+    Ri = remove_nth_body(dims)
+    Π = R' * project(G, m, dims) * R
+    K = R' * kinetic_matrix(Ω, m, dims) * R      # Compute the kinetic energy matrix
+    
+    dx_dA = compute_dx_dA(F, steps)
+    dA_dx = compute_dA_dx(F, steps)
+
+    I_factors = compute_integration_factors(steps)
+
+    x_to_A = Ri * kron(dA_dx, I(N*dim)) 
+    A_to_x = kron(dx_dA, I(N*dim)) * R
+
+    return dims, Problem(N, dim, G, m, f, K, dx_dA, dA_dx, A_to_x, x_to_A, Π, R, Ri, I_factors)
 
 end
 
 
 initialize(file::String) = initialize(parsefile(file))
 
-
-function represent_G_as_matrix(g::GroupElement)
-    M = [zeros(size(g.M)) for _ in axes(g.σ, 1), _ in axes(g.σ, 1)]
-    for (ix, v) in enumerate(g.σ)
-        M[ix, v] .= g.M
-    end
-    return M
-end
-
-function π_as_matrix(H::Matrix{Matrix{Float64}})
-    d = (N = size(H, 1), dim = size(H[end, end], 1))
-    H_flat = flatten(H)
-    π_matrix = (I(size(H_flat,1)) + H_flat)/2
-    return emboss(π_matrix, d)
-end
