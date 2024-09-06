@@ -85,11 +85,10 @@ function extend_to_period(P::Problem, x::Array{T, 3})::Array{T, 3} where T<:Real
     dim, N, n = size(x)
 
     initial_path = zeros(dim, N, 2n-1)
-    complete_path =  zeros(dim, N, (2n-1) * cyclic_order(P.G)) 
-
+    
     # The first half of the path is the same as the original path
     initial_path[:, :, 1:n] = copy(x[:, :, 1:n])
-
+    
     
     # The second half of the path is the reflection of the first half if the action is not Cyclic
     if P.G.action_type == Cyclic
@@ -101,6 +100,8 @@ function extend_to_period(P::Problem, x::Array{T, 3})::Array{T, 3} where T<:Real
         end
     end
 
+    complete_path =  zeros(dim, N, max_index * cyclic_order(P.G)) 
+    
     # If the cyclic order is greater than 1, we need to add the images of the path under the group action
     for j ∈ 1:cyclic_order(P.G), k ∈ 1:max_index
         complete_path[:, :, max_index * (j-1) + k] =  reshape(ϕg_n(P.G.g)[j] *  initial_path[:, :, k][:], dim, N)
@@ -122,10 +123,9 @@ function extend_to_period(P::Problem, f::T) where {T<:AbstractVector{<:Real}}
     n = lastindex(f)
 
     initial_f = zeros(2n - 1)
-    complete_f = zeros((2n-1) * cyclic_order(P.G))
-
+    
     initial_f[1:n] = copy(f[1:n])
-
+    
     if P.G.action_type == Cyclic
         max_index = n
     else
@@ -134,6 +134,7 @@ function extend_to_period(P::Problem, f::T) where {T<:AbstractVector{<:Real}}
             initial_f[n+k] = initial_f[n-k]
         end
     end
+    complete_f = zeros( max_index * cyclic_order(P.G))
 
     for j ∈ 1:cyclic_order(P.G), k ∈ 1:max_index
         complete_f[ max_index * (j-1) + k ] = initial_f[k]
