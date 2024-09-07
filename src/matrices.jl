@@ -99,15 +99,15 @@ function K_coriolis(Ω::Matrix{T}, M::Array{T, 4}, dims::NTuple{3, Int})::Matrix
     F, N, dim = dims
     K = zeros(dim, N, F+2, dim, N, F+2)
   
-    K[:, :,  1 , :, F+2] = -1.0 * M
-    K[:, :, F+2, :,  1 ] = 1.0 * M
+    K[:, :,  1 , :, :, F+2] = -1.0 * M
+    K[:, :, F+2, :, :,  1 ] = 1.0 * M
 
     for k ∈ 1:F
         K[:, :, 1, :, :, k] = 2.0 * ( (-1)^k - 1) / (k * π) * M
         K[:, :, k, :, :, 1] = - K[:, :, 1, :, :, k] 
         
-        K[:, :, F+2, :, F+2, k ] = -K[:, :, 1, :, :, k]
-        K[:, :,  k,  :,  k, F+2] =  K[:, :, 1, :, :, k] 
+        K[:, :, F+2, :, :, k] = -K[:, :, 1, :, :, k]
+        K[:, :,  k,  :, :, F+2] =  K[:, :, 1, :, :, k] 
 
         for j ∈ 2:F+1
             if k == j continue end
