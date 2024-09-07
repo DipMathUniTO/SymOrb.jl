@@ -4,7 +4,7 @@ using LinearAlgebra
 using DelimitedFiles: readdlm, writedlm
 using ForwardDiff: derivative
 using GAP: GapObj, gap_to_julia as g2j, @gap, evalstr, Globals as GG, Packages
-using JSON: parsefile
+using TOML: parsefile
 using NLsolve: nlsolve, NLsolve
 using Optim: optimize, Options, Optim
 using Printf: @sprintf
