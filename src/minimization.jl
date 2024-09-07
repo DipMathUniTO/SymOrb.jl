@@ -7,8 +7,8 @@ has_converged(res::Optim.OptimizationResults)::Bool = (res.x_converged || res.f_
 has_converged(res::NLsolve.SolverResults)::Bool = (res.x_converged || res.f_converged)
 
 """ 
-    perform_optimization(Γ0::Coefficients, method::NLSolveMethod)::Tuple{Coefficients, Int, Bool}
-    perform_optimization(Γ0::Coefficients, method::OptimMethod)::Tuple{Coefficients, Int, Bool}
+    perform_optimization(P::Problem, Γ0::Vector, method::NLSolveMethod)::Tuple{Vector, Int, Bool}
+    perform_optimization(P::Problem, Γ0::Vector, method::OptimMethod)::Tuple{Vector, Int, Bool}
 
 Wrappers around the minimization libraries
 """ 
@@ -32,14 +32,14 @@ function show_action(show_steps, Γ, p)
 end
 
 """
-    new_orbit(starting_path::Coefficients, method::CompoundMethod; max_repetitions::Int=10, perturb::Bool=false, perturbation::Float64=1e-3, action_threshold::Float64=2.0, show_steps=true)::MinimizationResult
+    new_orbit(p::Problem, starting_path::Vector, method::CompoundMethod; max_repetitions::Int=10, perturb::Bool=false, perturbation::Float64=1e-3, action_threshold::Float64=2.0, show_steps=true)::MinimizationResult
 
-Find a new orbit using the given `CompoundMethod` `method` and starting path. 
+Find a new orbit using the given `CompoundMethod` and starting path. 
 
 It first executes the `init` method. Then it alternates the `first` method and the `second` method
 until the minimization converges, the action is below `action_threshold` or the maximum number of repetitions is reached.
 
-To implement new optimization methods, define new methods for this function. 
+To implement new optimization algorithms, define new methods for this function. 
 New methods must accept 2 arguments, the starting path and the method to use, and a keyword argument `show_steps`.
 They must return a `MinimizationResult`.
 
@@ -94,7 +94,7 @@ function new_orbit(p, starting_path::Vector, method::CompoundMethod; max_repetit
         # If there are still repetitions left, prepare to continue
         if i < max_repetitions
             if perturb
-                Γ = perturbed_path(Γ, perturbation)
+                Γ = perturbe_path(Γ, (P.F, P.N, P.dim), perturbation)
             end
             
             Γ = p.Π* Γ
@@ -106,22 +106,23 @@ function new_orbit(p, starting_path::Vector, method::CompoundMethod; max_repetit
 end
 
 """ 
-    find_orbits(method::AbstractMethod=OneMethod(BFGS()), number_of_orbits::Float64=Inf; starting_path_type::Symbol=:random, starting_path::Union{Path,Nothing}=nothing, show_steps=true, print_path=true, options...)
+    find_orbits(P::Problem, method::AbstractMethod=OneMethod(BFGS());; starting_path_type::Symbol=:random, starting_path::Union{Path,Nothing}=nothing, show_steps=true, print_path=true,  print_path_folder::String="/.", options...)
 
 Find `number_of_orbits` orbits using the given `method` and starting path. 
 
 # Arguments
-- `method::AbstractMethod=OneMethod(BFGS())`: the minimization method to use
-- `number_of_orbits::Float64=Inf`: the number of orbits to find
+- `method::AbstractMethod=OneMethod(BFGS())`: the minimization method to use. Defaults to BFGS for 200 steps.
+- `number_of_orbits=Inf`: the number of orbits to find. Defaults to infinity.
 
 # Keyword Arguments
 - `starting_path_type::Symbol=:random`: the type of starting path to use
-- `starting_path::Union{Path,Nothing}=nothing`: the starting path to use
-- `show_steps::Bool=true`: whether to show the steps of the minimization
-- `print_path::Bool=true`: whether to print the path to a file
-- `options...`: additional options to pass to the optimization method
+- `starting_path::Union{Path,Nothing}=nothing`: the starting path to use. If provided, `starting_path_type` is ignored
+- `show_steps::Bool=true`: whether to show the steps of the minimization.
+- `print_path::Bool=true`: whether to print the path to a file.
+- `print_path_folder::String="./"`: the folder where to print the path.
+- `options...`: additional options to pass to the optimization method.
 """
-function find_orbits(problem::Problem, dims::DimensionsTuple, method::AbstractMethod=OneMethod(BFGS()); number_of_orbits::Union{Int, Float64}=Inf, starting_path_type::Symbol=:random, starting_path::Union{Vector,Nothing}=nothing, show_steps=true, print_path=true, options...)
+function find_orbits(P::Problem, method::AbstractMethod=OneMethod(BFGS()); number_of_orbits::Union{Int, Float64}=Inf, starting_path_type::Symbol=:random, starting_path::Union{Vector,Nothing}=nothing, show_steps=true, print_path=true, print_path_folder::String="./", options...)
     # Set the correct starting path type if the starting path is user-provided
     if ! isnothing(starting_path)
         starting_path_type = :given
@@ -136,18 +137,18 @@ function find_orbits(problem::Problem, dims::DimensionsTuple, method::AbstractMe
         log_if(show_steps, "#$i: Searching new orbit...\n", color = :blue, bold = true)
         # If the starting path is not user-provided, generate it
         if starting_path_type != :given
-            starting_path = get_starting_path(starting_path_type, dims)
+            starting_path = get_starting_path(P, starting_path_type)
         end
 
         # Find a new orbit
-        result = new_orbit(problem, starting_path, method; show_steps=show_steps, options...)
+        result = new_orbit(P, starting_path, method; show_steps=show_steps, options...)
         log_if(show_steps, result)
 
         # Check if the minimization converged and, if so, add the result to the list
         if result.converged && !isnan(result.action_value) && print_path
             # Print the path to a file if required
             if print_path
-                print_path_to_file(problem, result.fourier_coeff, @sprintf "%.5f.txt" result.action_value)
+                print_path_to_file(P, result.fourier_coeff, @sprintf "%s%.5f.txt" print_path_folder result.action_value)
             end
             log_if(show_steps, "==> Optimization converged\n\n", color = :green, bold = true)
             push!(results, result)
@@ -157,7 +158,6 @@ function find_orbits(problem::Problem, dims::DimensionsTuple, method::AbstractMe
 
         i += 1
     end
-
     return results
 end
 

@@ -1,3 +1,11 @@
+"""
+    build_path(P::Problem, Γ::Vector{T})::Array{T, 3}
+    build_path(P::Problem, Γ::Vector{T}, steps::Int64)::Array{T, 3}
+
+Build the path from the Fourier coefficients `Γ`. If `steps` is provided, the path is built with `steps` steps.
+NOTE: If `steps` is provided, the function will compute the Jacobian of the path in terms of the Fourier coefficients.
+Otherwise, it will use the precomputed Jacobian.
+"""
 function build_path(P::Problem, Γ::Vector{T})::Array{T, 3} where T
     steps = size(P.A_to_x, 1) ÷ (P.N*P.dim)
     x = P.A_to_x * Γ
@@ -11,72 +19,81 @@ function build_path(P::Problem, Γ::Vector{T}, steps::Int64)::Array{T, 3} where 
     reshape(x, P.dim, P.N, steps)
 end
 
+"""
+    fourier_coefficients(P::Problem, x::Array{T, 3})::Vector{T}
+
+Compute the Fourier coefficients of the path ``x``.
+"""
 function fourier_coefficients(P::Problem, x::Array{T, 3})::Vector{T} where T
-    steps = size(x, 3)
-    return P.x_to_A * reshape(x, P.dim*P.N*(steps), 1)
+    return P.x_to_A * x[:]
 end
 
+function fourier_coefficients(P::Problem, x::Array{T, 3}, steps::Int64)::Vector{T} where T
+    x_to_A = P.Ri * kron(compute_dA_dx(P.F, steps-2), I(P.dim * P.N)) 
+    return x_to_A * x[:]
+end
+
+
 """
-    get_starting_path(path_type::Symbol)::OffsetArray
+    get_starting_path(path_type::Symbol, dimensions)::Vector
 
 Generate the starting path for the minimization problem according to the given ``path_type``.
 """
-function get_starting_path(path_type::Symbol, dimensions)::Vector
+function get_starting_path(P::Problem, path_type::Symbol)::Vector
     if path_type == :circular
-        return circular_starting_path(dimensions)
+        return circular_starting_path(P::Problem)
     elseif path_type == :perturbed_circular
-        return perturbed_circular_starting_path(dimensions)
+        return perturbed_circular_starting_path(P::Problem)
     else
-        return random_starting_path(dimensions)
+        return random_starting_path(P::Problem)
     end
 end
 
 """
-    random_starting_path()::OffsetArray
+    random_starting_path(dimensions::NTuple{3, Int64})::Vector
 
 Generate a random starting path for the minimization problem.
 """
-function random_starting_path(dimensions)::Vector
-    F, N, dim = dimensions
-    rand(Float64, dim * (N-1) *(F+2))
+function random_starting_path(P::Problem)::Vector
+    rand(Float64, P.dim * (P.N-1) *(P.F+2))
 end
 
 
 """
-    circular_starting_path()::OffsetArray
+    circular_starting_path(dimensions)::Vector
 
 Generate a circular starting path for the minimization problem.
 """
-function circular_starting_path(dimensions)::Coefficients
-    dim, F, N = dimensions
-    steps = 2 * F
-    x = zeros(dim, N, steps+2)
+function circular_starting_path(P::Problem)
 
-    for h ∈ 0:steps+1, i ∈ 1:N-1
-        x[1, i, h] = cos(h * π / (steps + 1) + (i - 1) * 2 * π / N)
-        x[2, i, h] = sin(h * π / (steps + 1) + (i - 1) * 2 * π / N)
+    x = zeros(P.dim, P.N, P.steps+2)
+
+    for h ∈ 0:P.steps+1, i ∈ 1:P.N
+        x[1, i, h+1] = cos(h * π / (P.steps + 1) + (i - 1) * 2 * π / P.N)
+        x[2, i, h+1] = sin(h * π / (P.steps + 1) + (i - 1) * 2 * π / P.N)
     end
-
-    return fourier_coefficients(x, F)
+    return fourier_coefficients(P, x)
 end
 
 """
-    perturbed_path(x::Path, λ = 0.001)::Coefficients
+   perturbe_path(Γ::Vector{T}, dims::NTuple{3, Int64}, λ=0.001)::Vector{T}
 
-Perturb the given path ``x`` by a factor ``λ``.
+Perturb the given path `Γ`` by a factor ``λ``.
 """
-perturbe_path(x, λ=0.001)::Coefficients = x + λ * random_starting_path(size(x))
+function perturbe_path(P::Problem, Γ::Vector{T}, λ=0.001)::Vector{T} where T 
+    Γ + λ * random_starting_path(P)
+end
 
 """
-    perturbed_circular_starting_path(λ = 0.001)::Coefficients
+    perturbed_circular_starting_path(dimensions, λ::Float64=0.001)::Vector
 
 Generate a perturbed circular starting path for the minimization problem.
 """
-perturbed_circular_starting_path(dimensions, λ::Float64=0.001)::Coefficients = perturbe_path(circular_starting_path(dimensions), λ)
+perturbed_circular_starting_path(P::Problem, λ::Float64=0.001)::Vector = perturbe_path(P, circular_starting_path(P::Problem), λ)
 
 
 """
-    extend_to_period(x::Path)::Path
+    extend_to_period(P::Problem, x::Array{T, 3})::Array{T, 3} 
 
 Extend the path ``x`` form the fundamental domain I = [0, π] to a full period.
 """
@@ -115,11 +132,11 @@ function extend_to_period(P::Problem, x::Array{T, 3})::Array{T, 3} where T<:Real
 end
 
 """
-    extend_to_period(f::T) where {T <: AbstractVector{<:Real}}
+    extend_to_period(P::Problem, f::T)::Array{T, 3}
 
 Extend the function ``f`` form the fundamental domain I = [0, π] to a full period.
 """
-function extend_to_period(P::Problem, f::T) where {T<:AbstractVector{<:Real}}
+function extend_to_period(P::Problem, f::Vector{T})::Vector{T} where {T}
     n = lastindex(f)
 
     initial_f = zeros(2n - 1)
@@ -141,17 +158,17 @@ function extend_to_period(P::Problem, f::T) where {T<:AbstractVector{<:Real}}
     end
 
     complete_f[end] = initial_f[1]
-
+    @show typeof(complete_f)
     return complete_f
 end
 
 
 """
-    print_path_to_file(Γ::Coefficients, filename::String)
+   print_path_to_file(P::Problem, Γ::Vector, filename::String)::Nothing
 
-Print the Fourier coefficients of the path ``Γ`` to a file.
+Print the Fourier coefficients of the path ``Γ`` to the file named `filename`.
 """
-function print_path_to_file(P::Problem, Γ::Vector, filename::String)
+function print_path_to_file(P::Problem, Γ::Vector, filename::String)::Nothing
     Γr = P.R * Γ
     
     F = length(Γr) ÷ (P.N*P.dim)
@@ -167,15 +184,15 @@ function print_path_to_file(P::Problem, Γ::Vector, filename::String)
     end
 
     writedlm(filename, data, ' ')
-
+    nothing
 end
 
 """
-    read_path_from_file(filename::String)::Coefficients
+    read_path_from_file(P::Problem, filename::String)::Vector
 
-Read the Fourier coefficients of a path from a file.
+Read the Fourier coefficients of a path from the file named `filename`.
 """
-function read_path_from_file(P::Problem, filename::String)
+function read_path_from_file(P::Problem, filename::String)::Vector
     
     data = readdlm(filename, ' ')
     F = size(data, 1) ÷ P.N

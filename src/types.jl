@@ -50,8 +50,6 @@ cyclic_order(G::SymmetryGroup) = length(G.g)
 # ==================== PROBLEM ====================
 
 
-const DimensionsTuple = @NamedTuple{F::Int, N::Int, dim::Int}
-
 """
 The minimization problem to be solved
 
@@ -63,12 +61,21 @@ The minimization problem to be solved
 - `G::SymmetryGroup`: The symmetry group of the minimization problem
 - `m::Vector{Float64}`: The masses of the particles
 - `f::A`: The denominator of the potential
-- `K::OffsetMatrix{Matrix{Matrix{Float64}}}`: The kinetic energy matrix
-- `dx_dAk::OffsetVector{Vector{Float64}}`: The derivative of the path w.r.t. the Fourier coefficients
+- `K::Matrix{Float64}`: The kinetic energy matrix
+- `dx_dA::Matrix{Float64}`: The derivative of the path w.r.t. the Fourier coefficients
+- `dA_dx::Matrix{Float64}`: The derivative of the Fourier coefficients w.r.t. the path
+- `A_to_x::Matrix{Float64}`: The transformation matrix from Fourier coefficients to path
+- `x_to_A::Matrix{Float64}`: The transformation matrix from path to Fourier coefficients
+- `Π::Matrix{Float64}`: The projection matrix
+- `R::Matrix{Float64}`: The matrix that reconstructs the nth body
+- `Ri::Matrix{Float64}`: The matrix that removes the nth body
+- `I_factors::Vector{Float64}`: The integration factors
 """
 struct Problem{M<:Function, T<:Real}
     N::Int64
     dim::Int64
+    F::Int64
+    steps::Int64
     G::SymmetryGroup
     m::Vector{T}
     f::M
@@ -83,11 +90,42 @@ struct Problem{M<:Function, T<:Real}
     I_factors::Vector{T}
 end
 
+"""
+    Base.show(io::IO, P::Problem)
 
-
+Pretty-print the minimization problem
+"""
 function Base.show(io::IO, P::Problem)
-    println(io, "\nSymmetry group: \t", P.G)
-    println(io, "Denominator: \t", P.f)
+    println(io, "N: \t\t", P.N)
+    println(io, "dim: \t\t", P.dim)
+    println(io, "F: \t\t", P.F)
+    println(io, "steps: \t\t", P.steps)
+    println(io, "Masses: \t", P.m)
+    println(io, "\nSymmetry group: ", P.G)
+end
+
+function Base.show(io::IO, G::SymmetryGroup)
+    println(io, "SymmetryGroup of type ", G.action_type)
+    
+    println(io, "ker(τ) ")
+    for g in G.kerT
+        println(io, "  ", g)
+    end
+    println(io, "H0 = ", G.H0)
+    if G.action_type != Cyclic
+        println(io, "H1 = ", G.H1)
+    end
+    println(io, "Cylic generators: ")
+    for g in G.g
+        println(io, "  ", g)
+    end
+    println(io, "Cyclic order = ", cyclic_order(G))
+end
+
+function Base.show(io::IO, G::GroupElement)
+    println(io, "GroupElement:")
+    println(io, "\tσ: ", G.σ)
+    println(io, "\tM: ", G.M)
 end
 
 """
@@ -132,7 +170,11 @@ abstract type NLSolveMethod <: AbstractAtomicMethod end
 @atomic_method OptimMethod ConjugateGradient :ConjugateGradient
 @atomic_method OptimMethod GradientDescent :GradientDescent
 
-# Define the compound minimization methods
+"""
+    CompoundMethod{M <: AbstrAtomicOrNothing, N <: AbstrAtomicOrNothing, O <: AbstrAtomicOrNothing}
+
+A minimization method that combines up to three atomic minimization methods
+"""
 struct CompoundMethod{M <: AbstrAtomicOrNothing, N <: AbstrAtomicOrNothing, O <: AbstrAtomicOrNothing} <: AbstractCompoundMethod
     init::M
     first::N
@@ -168,8 +210,9 @@ end
 
 """
     Base.show(io::IO, method::AbstractCompoundMethod)
+    Base.show(io::IO, ::MIME"text/plain", method::AbstractCompoundMethod)
 
-Specialized pretty-printing for the compound minimization `method` in a concise way
+Pretty-print the compound minimization `method`
 """
 function Base.show(io::IO, method::AbstractCompoundMethod)
     print(io, typeof(method))
@@ -185,18 +228,17 @@ end
 # ================== MINIMIZATION RESULT ==================
 
 """
-    MinimizationResult{T <: AbstractMethod}(    initial::Coefficients, fourier_coeff::Coefficients, gradient_norm::Float64, action_value::Float64. converged::Bool, method::T)
+    MinimizationResult{T <: AbstractMethod}
 
 The result of a minimization
 
 # Fields
-- `initial::Coefficients`: The initial Fourier coefficients
-- `fourier_coeff::Coefficients`: The Fourier coefficients of the minimum
-- `iterations::Int`: The number of iterations
+- `initial::Vector`: The initial path
+- `fourier_coeff::Vector`: The Fourier coefficients of the minimization result
 - `gradient_norm::Float64`: The norm of the gradient at the minimum
 - `action_value::Float64`: The value of the action at the minimum
 - `converged::Bool`: Whether the minimization converged
-- `method::T`: The minimization method
+- `method::T`: The minimization method used
 """
 @kwdef struct MinimizationResult{T <: AbstractMethod}
     initial::Vector

@@ -3,7 +3,7 @@ function E(n)
 end
 
 """
-    to_julia(el)
+    to_julia(el)::GroupElement
 
 Create a GroupElement from the GAP result.
 """
@@ -11,15 +11,16 @@ function to_julia(el)::GroupElement
     GG.tuple = GapObj(el)
     perm::Permutation =  g2j(@gap Permuted([1 .. NOB], tuple[2]^(-1)))
     matrix::Rotation = eval.(Meta.parse.(hcat(g2j(@gap ConvertToString(tuple[1]))...)))  
-    return GroupElement(perm, matrix)    
+    GroupElement(perm, matrix)    
 end
 
 """
-    initialize(data::T) where {T<:AbstractDict}
+    initialize(data::Dict)::Problem
+    initialize(filename::String)::Problem
 
-Initialize the problem with the data given in the dictionary.
+Initialize the problem with the data given in the dictionary `data` or in the file `filename`.
 """
-function initialize(data::T) where {T<:AbstractDict}
+function initialize(data::Dict)::Problem
     # Load GAP package
     Packages.load("$(@__DIR__)" * "/gap")
     
@@ -51,14 +52,14 @@ function initialize(data::T) where {T<:AbstractDict}
 
     m = convert.(Float64, data["m"])    # the masses
     F = data["F"]::Int                  # number of Fourier series terms
-    dims = (F = F, N=N, dim=dim)
+    dims = (F, N, dim)
     steps = if haskey(data, "steps")   # number of steps in the discretization of time [0,π]    
         data["steps"]::Int
     else
         2 * F
     end            
 
-    Ω = hcat(data["Omega"]...)'         # generator of angular velocity
+    Ω = Matrix{Float64}(hcat(data["Omega"]...)')         # generator of angular velocity
  
     
     # If the denominator of the potential energy is given, use it. Otherwise, use the identity function
@@ -71,7 +72,7 @@ function initialize(data::T) where {T<:AbstractDict}
     G = SymmetryGroup(action_type, kerT, g, H0, H1)
     R = nth_body(m, dims)
     Ri = remove_nth_body(dims)
-    Π = Ri * project(G, m, dims) * R
+    Π = Ri * project(G, dims) * R
     K = R' * kinetic_matrix(Ω, m, dims) * R      # Compute the kinetic energy matrix
     
     dx_dA = compute_dx_dA(F, steps)
@@ -82,10 +83,9 @@ function initialize(data::T) where {T<:AbstractDict}
     x_to_A = Ri * kron(dA_dx, I(N*dim)) 
     A_to_x = kron(dx_dA, I(N*dim)) * R
 
-    return dims, Problem(N, dim, G, m, f, K, dx_dA, dA_dx, A_to_x, x_to_A, Π, R, Ri, I_factors)
+    return Problem(N, dim, F, steps, G, m, f, K, dx_dA, dA_dx, A_to_x, x_to_A, Π, R, Ri, I_factors)
 
 end
 
-
-initialize(file::String) = initialize(parsefile(file))
+initialize(filename::String)::Problem = initialize(parsefile(filename))
 

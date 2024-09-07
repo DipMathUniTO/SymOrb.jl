@@ -1,28 +1,28 @@
 """
-action(Γ::Coefficients)::Float64
-
+    action(p::Problem, Γ::Vector{T})::T
 Compute the constrained action for a given configuration ``Γ``.
-    """
+"""
 
 function action(p::Problem, Γ::Vector{T})::T where {T}
-    Γ .= p.Π * Γ
+    Γ .= p.Π * Γ    # Project the path
     kinetic(p, Γ) + potential(p, Γ)    
 end
 
 
 """ 
-    ∇action(Γ::Coefficients)::AbstractVector
+    ∇action(p::Problem, Γ::Vector{T})::Vector{T}
 
 Compute the gradient of the constrained action for a given configuration ``Γ``.
 """
-function ∇action(p::Problem,Γ::Vector{T})::Vector{T} where {T}
+function ∇action(p::Problem, Γ::Vector{T})::Vector{T} where {T}
     Γ .= p.Π * Γ
     p.Π' * (∇kinetic(p, Γ) + ∇potential(p, Γ))
 end
 
 
+
 """
-    Haction(Γ::Coefficients)::AbstractMatrix
+    Haction(p::Problem, Γ::Vector{T})::Matrix{T}
 
 Compute the Hessian of the constrained action for a given configuration ``Γ``.
 """
@@ -33,7 +33,7 @@ end
 
 
 """
-    kinetic(Γ::Coefficients)::Float64
+    kinetic(p::Problem, Γ::Vector{T})::T
 
 Compute the kinetic part of the action for a given configuration ``Γ``.
 """
@@ -42,7 +42,7 @@ function kinetic(p::Problem, Γ::Vector{T})::T where {T}
 end
 
 """ 
-    ∇kinetic(Γ::Coefficients)::AbstractVector
+    ∇kinetic(p::Problem, Γ::Vector{T})::Vector{T}
 
 Compute the gradient of the kinetic part of the action for a given configuration ``Γ``.
 """
@@ -60,7 +60,7 @@ function Hkinetic(p::Problem, _::Vector{T})::Matrix{T} where {T}
 end
 
 """
-    potential(Γ::Coefficients)::Float64
+    potential(p::Problem, Γ::Vector{T})::T
 
 Compute the potential part of the action for a given configuration ``Γ``.
 """
@@ -75,7 +75,7 @@ function potential(p::Problem, Γ::Vector{T})::T where{T}
 end
 
 """ 
-    ∇potential(Γ::Coefficients)::AbstractVector
+    ∇potential(p::Problem, Γ::Vector{T})::Vector{T}
 
 Compute the gradient of the potential part of the action for a given configuration ``Γ``.
 """
@@ -98,7 +98,7 @@ end
 
 
 """
-    Hpotential(Γ::Coefficients)::AbstractMatrix
+    Hpotential(p::Problem, Γ::Vector{T})
 
 Compute the Hessian of the potential part of the action for a given configuration ``Γ``.
 """
@@ -128,10 +128,9 @@ end
 
 
 """
-    U(Γ::Coefficients, [n::Int = steps+1])::AbstractVector
+   U(P, x::Array{T, 3})::Vector{T}
 
-Compute the potential for a given configuration ``Γ`` having an arbitrary function `f(r)` 
-    at the denominator  and using  ``n`` points along the path.
+Compute the potential at every time step along the path ``x``.
 """
 function U(P, x::Array{T, 3})::Vector{T} where T
     N = size(x, 2)
@@ -147,9 +146,7 @@ end
 """
     ∇U(Γ::Coefficients, [n::Int = steps+1])::AbstractVector
 
-Compute the
-    return A gradient of the potential for a given configuration ``Γ``
- having an arbitrary function `f(r)` at the denominator and using  ``n`` points along the path.
+Compute the gradient of the potential at every time step along the path ``x``.
 """
 function ∇U(P::Problem, x::Array{T, 3})::Vector{Array{T, 2}} where {T}
     dim, N, steps  = size(x)
@@ -172,8 +169,7 @@ end
 """ 
     HU(Γ::Coefficients, [n::Int = steps+1])::AbstractMatrix
 
-Compute the hessian for a given configuration ``Γ`` having an arbitrary function 
-    `f(r)` at the denominator  and using  ``n`` points along the path.
+Compute the hessian of the potential at every time step along the path ``x``
 """
 function HU(P::Problem, x::Array{T, 3})::Vector{Array{T, 4}} where {T} 
     
@@ -203,11 +199,11 @@ end
 
 
 """
-    K_energy(Γ::Coefficients, [n::Int = steps+1])::AbstractVector
+    K_energy(P::Problem, Γ::Vector{T}, n::Int)::Vector{T} 
 
 Compute the kinetic energy for a given configuration ``Γ`` over ``n`` points along the path.
 """
-function K_energy(P::Problem, Γ::Vector, n::Int)::AbstractVector
+function K_energy(P::Problem, Γ::Vector{T}, n::Int)::Vector{T} where T
     Γ = P.R * Γ
 
     F = size(Γ, 1) ÷ (P.dim * P.N) - 2 

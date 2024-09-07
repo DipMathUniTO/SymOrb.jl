@@ -1,15 +1,38 @@
-"""
-    K_linear(N, F, dim, m)
+""" 
+    kinetic_matrix(Ω::Matrix{T}, m::Vector{T}, dims::NTuple{3, Int})::Matrix{T}
 
-Compute the linear part of the kinetic energy operator
+Compute the kinetic energy matrix
 
 # Arguments
-- `N::Int`: The number of particles
-- `F::Int`: The number of Fourier series terms
-- `dim::Int`: The dimension of the space
-- `m::Matrix{Matrix{Float64}}`: The masses of the particles
+- `Ω::Matrix`: The generator of the rotation
+- `m::Vector{T}`: The masses of the particles
+- `dims::NTuple{3, T}`: A tuple containing the number of Fourier series terms, the number of particles and the dimension of the space
 """
-function K_linear(M, dims)
+function kinetic_matrix(Ω::Matrix{T}, m::Vector{T}, dims::NTuple{3, Int})::Matrix{T} where T
+    _, N, dim = dims
+    M = zeros(dim, N, dim, N)
+
+    for i ∈ 1:N
+        M[:, i, :, i] = m[i] * I(dim)
+    end
+
+    K = K_linear(M, dims)          # linear part of the kinetic energy matrix 
+    if  (!iszero(Ω))
+        K .+=  K_centrifugal(Ω*Ω, M, dims) + K_coriolis(Ω, M, dims)
+    end
+    K
+end
+
+"""
+    K_linear(M::Matrix, dims::NTuple{3, Int})
+
+Compute the matrix corresponding to the linear part of the kinetic energy operator
+
+# Arguments
+- `M::Matrix : The mass tensor
+- `dims::NTuple{3, T}`: A tuple containing the number of Fourier series terms, the number of particles and the dimension of the space
+"""
+function K_linear(M::Array{T, 4}, dims::NTuple{3, Int})::Matrix{T} where T
     F, N, dim = dims
     K = zeros(dim, N, F+2, dim, N, F+2)
     
@@ -26,18 +49,16 @@ end
 
 
 """
-    K_centrifugal(Ω2, N, F, dim, m)
+    K_centrifugal(Ω2::Matrix{T}, M::Matrix{T}, dims::Tuple)::Matrix{T} 
 
-Compute the centrifugal part of the kinetic energy operator
+Compute the matrix corresponding to the centrifugal part of the kinetic energy operator
 
 # Arguments
-- `Ω2::Float64`: The square of the generator of the rotation
-- `N::Int`: The number of particles
-- `F::Int`: The number of Fourier series terms
-- `dim::Int`: The dimension of the space
-- `m::Matrix{Matrix{Float64}}`: The masses of the particles
+- `Ω2::Matrix`: The square of the generator of the rotation
+- `M::Array{T, 4} : The mass tensor
+- `dims::NTuple{3, T}`: A tuple containing the number of Fourier series terms, the number of particles and the dimension of the space
 """
-function K_centrifugal(Ω2, M, dims)
+function K_centrifugal(Ω2::Matrix{T}, M::Array{T, 4}, dims::NTuple{3, Int})::Matrix{T} where T
     F, N, dim = dims
     K = zeros(dim, N, F+2, dim, N, F+2)
 
@@ -65,18 +86,16 @@ end
 
 
 """
-    K_coriolis(Ω, N, F, dim, M)
+    K_coriolis(Ω::Matrix{T}, M::Matrix{T}, dims::NTuple{3, Int})::Matrix{T}
 
-Compute the Coriolis part of the kinetic energy operator
+Compute the matrix corresponding to the Cpriolis part of the kinetic energy operator
 
 # Arguments
-- `Ω::Float64`: The generator of the rotation
-- `N::Int`: The number of particles
-- `F::Int`: The number of Fourier series terms
-- `dim::Int`: The dimension of the space
-- `m::Matrix{Matrix{Float64}}`: The masses of the particles
+- `Ω::Matrix`: The generator of the rotation
+- `M::Array{T, 4} : The mass matrix (diagonal matrix `dN × dN` containing `d`` times the mass of the `i`-th particle)
+- `dims::NTuple{3, T}`: A tuple containing the number of Fourier series terms, the number of particles and the dimension of the space
 """
-function K_coriolis(Ω, M, dims)
+function K_coriolis(Ω::Matrix{T}, M::Array{T, 4}, dims::NTuple{3, Int})::Matrix{T} where T
     F, N, dim = dims
     K = zeros(dim, N, F+2, dim, N, F+2)
   
@@ -107,15 +126,15 @@ end
 
 
 """
-    compute_dx_dAk(F, steps)
+    compute_dx_dA(F::Int64, steps::Int64)::Matrix
 
-Compute the derivative of the path with respect to the Fourier coefficients
+Compute the Jacobian of the path written in terms of Fourier coefficients
 
 # Arguments
-- `F::Int`: The number of Fourier series terms
-- `steps::Int`: The number of steps in the path
+- `F::Int64`: The number of Fourier series terms
+- `steps::Int64`: The number of steps in the path
 """
-function compute_dx_dA(F, steps)
+function compute_dx_dA(F::Int64, steps::Int64)::Matrix
     M = zeros(steps+2, F+2)
 
     M[:, 1] = [  (1 - h  / (steps+1) ) for h ∈ 0:steps+1]
@@ -125,7 +144,17 @@ function compute_dx_dA(F, steps)
     return  M      
 end 
 
-function compute_dA_dx(F, steps)
+
+"""
+    compute_dx_dA(F::Int64, steps::Int64)::Matrix
+
+Compute the Jacobian of the Fourier coefficients written in terms of the path.
+
+# Arguments
+- `F::Int`: The number of Fourier series terms
+- `steps::Int`: The number of steps in the path
+"""
+function compute_dA_dx(F::Int64, steps::Int64)::Matrix
     M =  zeros(F+2, steps+2)
     
     M[1, 1] = 1.0
@@ -139,28 +168,12 @@ function compute_dA_dx(F, steps)
     return M
 end
 
+"""
+    compute_integration_factors(steps::Int64)::Vector
 
-function kinetic_matrix(Ω, m, dims)
-    _, N, dim = dims
-
-    M = zeros(dim, N, dim, N)
-
-    for i ∈ 1:N
-        M[:, i, :, i] = m[i] * I(dim)
-    end
-
-    K = K_linear(M, dims)          # linear part of the kinetic energy matrix 
-    
-    if  (!iszero(Ω))
-        K .+=  K_centrifugal(Ω*Ω, M, dims) + K_coriolis(Ω, M, dims)
-    end
-    
-    return K
-end
-
-
-
-function compute_integration_factors(steps)
+Compute the integration factors to use to integrate from `0` to `π` over `steps` steps using the trapezoidal rule
+"""
+function compute_integration_factors(steps::Int64)::Vector
     factors = ones(steps+2)
     factors[1] = 0.5
     factors[end] = 0.5
