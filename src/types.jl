@@ -60,7 +60,8 @@ The minimization problem to be solved
 - `steps::Int`: The number of steps in the discretization of time [0,π]
 - `G::SymmetryGroup`: The symmetry group of the minimization problem
 - `m::Vector{Float64}`: The masses of the particles
-- `f::A`: The denominator of the potential
+- `f::M`: The denominator of the potential
+- `f_raw::String`: The string representation of f
 - `K::Matrix{Float64}`: The kinetic energy matrix
 - `dx_dA::Matrix{Float64}`: The derivative of the path w.r.t. the Fourier coefficients
 - `dA_dx::Matrix{Float64}`: The derivative of the Fourier coefficients w.r.t. the path
@@ -88,6 +89,7 @@ struct Problem{M<:Function, T<:Real}
     R::Matrix{T}
     Ri::Matrix{T}
     I_factors::Vector{T}
+    meta::Dict
 end
 
 """
@@ -100,7 +102,12 @@ function Base.show(io::IO, P::Problem)
     println(io, "dim: \t\t", P.dim)
     println(io, "F: \t\t", P.F)
     println(io, "steps: \t\t", P.steps)
-    println(io, "Masses: \t", P.m)
+    println(io, "masses: \t", P.m)
+    if haskey(P.meta, "denominator")
+        println(io, "denominator: \tf(x) = ", P.meta["denominator"])
+    else 
+        println(io, "denominator: \tf(x) = x")
+    end
     println(io, "\nSymmetry group: ", P.G)
 end
 

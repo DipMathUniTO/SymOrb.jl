@@ -80,34 +80,6 @@ function π_kerT(G::SymmetryGroup, dims)::Matrix
     reshape(M, (F+2)*N*dim, (F+2)*N*dim)
 end
 
-"""
-    nth_body(m::Vector{Float64}, dims)::Matrix{Float64}
-
-Compute the matrix representation of operator that reconstructs the nth body giben the masses `m` and the dimensions `dims`
-"""
-function nth_body(m::Vector{T}, dims)::Matrix{T} where T
-    F, N, dim = dims
-    M = zeros(dim, N, F+2, dim, N-1, F+2)
-    for k ∈ axes(M, 3), i ∈ axes(M, 5)
-        M[:,  i , k, :, i, k] = I(dim)
-        M[:, end, k, :, i, k] = - m[i] / m[end] * I(dim)
-    end
-    return reshape(M, (F+2)*N*dim, (F+2)*(N-1)*dim)
-end
-
-"""
-    remove_nth_body(dims)::Matrix{Float64}
-
-Compute the matrix representation of the operator that removes the nth body given the dimensions `dims`
-"""
-function remove_nth_body(dims)
-    F, N, dim = dims
-    M = zeros(dim, N-1, F+2, dim, N, F+2)
-    for i in axes(M, 2), k in axes(M, 3)
-        M[:, i, k, :, i, k] = I(dim)
-    end
-    return reshape(M, (F+2)*(N-1)*dim, (F+2)*N*dim)
-end
 
 """ 
     project(G::SymmetryGroup, dims::NTuple{3, Int64})::Matrix

@@ -14,6 +14,7 @@ function to_julia(el)::GroupElement
     GroupElement(perm, matrix)    
 end
 
+
 """
     initialize(data::Dict)::Problem
     initialize(filename::String)::Problem
@@ -31,11 +32,16 @@ function initialize(data::Dict)::Problem
     action_type = ActionType(at)
 
     GG.kern = evalstr(string(data["kern"]))
-    GG.rotV = evalstr(string(data["rotV"]))
-    GG.refV = evalstr(string(data["refV"]))
-    GG.rotS = evalstr(replace(string(data["rotS"]), "[" => "(", "]" => ")"))
-    GG.refS = evalstr(replace(string(data["refS"]), "[" => "(", "]" => ")"))
 
+    GG.rotV = evalstr(data["rotV"])
+    GG.rotS = evalstr(data["rotS"])
+    if action_type != Cyclic
+        GG.refV = evalstr(data["refV"])
+        GG.refS = evalstr(data["refS"])
+    else 
+        GG.refV = evalstr( "[]")
+        GG.refS = evalstr( "()")
+    end
     # Create the GAP Symmetry Group
     GG.LSG = GG.LagSymmetryGroup(at, N, GG.kern, GG.rotV, GG.rotS, GG.refV, GG.refS)
 
@@ -63,10 +69,12 @@ function initialize(data::Dict)::Problem
     Ω = Matrix{Float64}(hcat(data["Omega"]...)')         # generator of angular velocity
  
     # If the denominator of the potential energy is given, use it. Otherwise, use the identity function
-    f = if haskey(data, "denominator")
-        eval(Meta.parse("x -> " * data["denominator"]))
-    else 
-        x -> x
+    f_raw = "x"
+    f = x -> x
+
+    if haskey(data, "denominator")
+        f_raw =  data["denominator"]
+        f = eval(Meta.parse("x -> " *f_raw))
     end
     
     G = SymmetryGroup(action_type, kerT, g, H0, H1)
@@ -83,9 +91,9 @@ function initialize(data::Dict)::Problem
     x_to_A = Ri * kron(dA_dx, I(N*dim)) 
     A_to_x = kron(dx_dA, I(N*dim)) * R
 
-    return Problem(N, dim, F, steps, G, m, f, K, dx_dA, dA_dx, A_to_x, x_to_A, Π, R, Ri, I_factors)
+    return Problem(N, dim, F, steps, G, m, f, K, dx_dA, dA_dx, A_to_x, x_to_A, Π, R, Ri, I_factors, data)
 
 end
 
-initialize(filename::String)::Problem = initialize(parsefile(filename))
+initialize(filename::String)::Problem = initialize(TOML.parsefile(filename))
 

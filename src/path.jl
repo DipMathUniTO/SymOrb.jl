@@ -158,7 +158,7 @@ function extend_to_period(P::Problem, f::Vector{T})::Vector{T} where {T}
     end
 
     complete_f[end] = initial_f[1]
-    @show typeof(complete_f)
+
     return complete_f
 end
 
@@ -166,44 +166,25 @@ end
 """
    print_path_to_file(P::Problem, Γ::Vector, filename::String)::Nothing
 
-Print the Fourier coefficients of the path ``Γ`` to the file named `filename`.
+Print the information about `P` and the Fourier coefficients of the path ``Γ`` to the file named `filename`.
 """
-function print_path_to_file(P::Problem, Γ::Vector, filename::String)::Nothing
-    Γr = P.R * Γ
-    
-    F = length(Γr) ÷ (P.N*P.dim)
-
-    Γr = reshape(Γr, P.dim, P.N, F)
-
-    data = Matrix{Float64}(undef, F*P.N, P.dim)
-
-    for k ∈ axes(data, 1)7
-        h = (k - 1) % F + 1
-        i = (k - 1) ÷ F + 1
-        data[k, :] = Γr[:, i, h]
+function print_path_to_file(P, Γ, filename)
+    data = copy(P.meta)
+    data["path"] = Γ
+    open(filename, "w") do io
+        TOML.print(io, data)
     end
-
-    writedlm(filename, data, ' ')
-    nothing
 end
 
 """
-    read_path_from_file(P::Problem, filename::String)::Vector
+    read_path_from_file(filename::String)::Tuple{Problem, Vector}
 
-Read the Fourier coefficients of a path from the file named `filename`.
+Read the Fourier coefficients of a path  and the problem configuration from the file named `filename`.
 """
-function read_path_from_file(P::Problem, filename::String)::Vector
-    
-    data = readdlm(filename, ' ')
-    F = size(data, 1) ÷ P.N
-    Γ = zeros(P.dim, P.N, 26)
-
-    for k in axes(data, 1)
-        h = (k - 1) % F + 1
-        i = (k - 1) ÷ F + 1
-        Γ[:, i, h] = data[k, :]
-    end
-    return P.Ri * Γ[:]
+function read_path_from_file(filename::String)::Tuple{Problem, Vector}
+    data = TOML.parsefile(filename)
+    P = initialize(data)
+    return P, data["path"]
 end
 
 function path_animation()

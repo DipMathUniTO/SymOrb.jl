@@ -128,6 +128,13 @@ function find_orbits(P::Problem, method::AbstractMethod=OneMethod(BFGS()); numbe
         starting_path_type = :given
     end
 
+    if haskey(P.meta, "symmetry_name")
+        print_path_folder = joinpath(print_path_folder, P.meta["symmetry_name"])*"/"
+        if !isdir(print_path_folder)
+            mkdir(print_path_folder)
+        end
+    end
+
     i = 0
     results = []
     @show number_of_orbits
@@ -148,7 +155,7 @@ function find_orbits(P::Problem, method::AbstractMethod=OneMethod(BFGS()); numbe
         if result.converged && !isnan(result.action_value) && print_path
             # Print the path to a file if required
             if print_path
-                print_path_to_file(P, result.fourier_coeff, @sprintf "%s%.5f.txt" print_path_folder result.action_value)
+                print_path_to_file(P, result.fourier_coeff, @sprintf "%s%.4f.toml" print_path_folder result.action_value)
             end
             log_if(show_steps, "==> Optimization converged\n\n", color = :green, bold = true)
             push!(results, result)

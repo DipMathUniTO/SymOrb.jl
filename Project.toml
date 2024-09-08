@@ -3,7 +3,6 @@ uuid = "342ca686-5476-4651-a9b9-f19fc25398e9"
 version = "0.2.0"
 
 [deps]
-DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 GAP = "c863536a-3901-11e9-33e7-d5cd0df7b904"
 GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
