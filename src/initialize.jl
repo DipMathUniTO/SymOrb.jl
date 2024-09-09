@@ -81,11 +81,11 @@ function initialize(data::Dict)::Problem
     A_to_x = kron(dx_dA, I(N*dim)) * R
     
     # Matrix to integrate the potential
-    Z = compute_integration_factors(steps)
-    Z_mat = kron(Diagonal(Z), I(N*dim))
-    
-    Zl = (A_to_x' * Z_mat)
-    return Problem(N, dim, F, steps, G, m, f, K, A_to_x, x_to_A, Π, R, Ri, Z, Zl, data)
+    Zu = compute_integration_factors(steps)
+    Zg = Matrix((kron(Zu, ones(N*dim)) .* A_to_x)') 
+    Zh = Matrix((kron(Zu', I(N*dim)) * A_to_x )')
+
+    return Problem(N, dim, F, steps, G, m, f, K, A_to_x, x_to_A, Π, R, Ri, Zu, Zg, Zh, data)
 
 end
 

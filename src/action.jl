@@ -68,7 +68,7 @@ function potential(p::Problem, Γ::Vector{T})::T where{T}
     x = build_path(p, Γ)
 
     # The vector p.Z represents the linear transformation from U(t) to ∫U(t) dt
-    p.Z ⋅ U(p, x)
+    p.Zu ⋅ U(p, x)
 end
 
 """ 
@@ -78,14 +78,12 @@ Compute the gradient of the potential part of the action for a given configurati
 """
 function ∇potential(p::Problem, Γ::Vector{T})::Vector{T} where T 
     x = build_path(p, Γ)
-   
+    
     # The gradient of potential part of the action is the discrete integral along the path using the
     # rectangle rule of the gradient potential energy (∇V) times the derivative of the path x 
     # with respect to the Fourier coefficients Ak's (dx_dAk).
-
-    # The matrix p.Zl is the matrix that represents the linear transformation from ∇U(t) to ∫∇U(t) ∂x/∂A dt
     
-    p.Zl *  ∇U(p, x) 
+    p.Zg * ∇U(p, x)
 end
 
 
@@ -98,6 +96,7 @@ function Hpotential(p::Problem, Γ::Vector{T}) where T
     
     x = build_path(p, Γ)
 
+
     # The hessian of the potential part of the action is the discrete integral along the path using the
     # rectangle rule of the hessian potential energy (∇V) times the tensor product of the derivative of the path x 
     # with respect to the Fourier coefficients Ak's (dx_dAk) with itself. 
@@ -108,9 +107,8 @@ function Hpotential(p::Problem, Γ::Vector{T}) where T
     # The matrix p.Zl and p.A_to_x are the matrices that represents the linear transformation 
     # from HU(t) to ∫(∂x/∂A)' HU(t) ∂x/∂A dt
 
-    HU_t = HU(p, x)
-    result = p.Zl * HU_t * p.A_to_x
-    result
+    p.Zg * HU(p, x) * p.A_to_x 
+
 end
 
 
@@ -139,7 +137,7 @@ function ∇U(P::Problem, x::Array{T, 3})::Vector{T} where {T}
 function ∇U(P::Problem, x::Array{T, 3})::Vector{T} where {T}
     dim, N, steps  = size(x)
     ∇U_ij = zeros(T, dim)
-    ∇U = zeros(T, dim, N, steps)
+    ∇U =  zeros(T, dim, N, steps)
     Δx = zeros(T, dim)
     df = x -> derivative(P.f, x)
     for h ∈ 1:steps, i ∈ 1:N-1, j ∈ (i+1):N
@@ -168,18 +166,18 @@ function HU(P::Problem, x::Array{T, 3})::Matrix{T} where {T}
     dim, N, steps = size(x)
     dim, N, steps = size(x)
 
-    HU = zeros(T, dim, N,  steps, dim, N, steps)
+    HU = zeros(T, dim, N, steps, dim, N, steps)
     df = x -> derivative(P.f, x)
     d2f = x -> derivative(df, x)
 
     Δx = zeros(T, dim)
     HU_ij = zeros(T, dim, dim)
-    
 
     for h ∈ axes(x, 3), i ∈ 1:N-1, j ∈ (i+1):N
         @. Δx = x[:, i, h] - x[:, j, h]
         r = norm(Δx)
-        HU_ij .= - P.m[i] * P.m[j] / (P.f(r) * r)^2 * ( (Δx * Δx') * ( d2f(r) - df(r)/r - 2*df(r)^2 / P.f(r) ) +  I * df(r) * r)
+
+        HU_ij .= - P.m[i] * P.m[j] / (P.f(r) * r)^2 * ( (Δx * Δx') * ( d2f(r) - df(r)/r - 2*df(r)^2 / P.f(r) ) + I * df(r) * r)
 
         @. HU[:, i, h, :, i, h] += HU_ij
         @. HU[:, j, h, :, j, h] += HU_ij

@@ -152,8 +152,9 @@ struct Problem{M<:Function, T<:Real}
     Π::Matrix{T}
     R::Matrix{T}
     Ri::Matrix{T}
-    Z::Vector{T}
-    Zl::Matrix{T}
+    Zu::Vector{T}
+    Zg::Matrix{T}
+    Zh::Matrix{T}
     meta::Dict
 end
 
