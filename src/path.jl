@@ -190,3 +190,11 @@ end
 function path_animation()
     error("GLMakie must be loaded")
 end
+
+function SymPath.path_animation(filename::String, opts...)
+    P, Γ = SymPath.read_path_from_file(filename)
+    @show methods(P.f)
+    P.f(4.0)
+    SymPath.path_animation(P, Γ; opts...)
+    return P, Γ
+end

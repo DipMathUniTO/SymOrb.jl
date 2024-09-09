@@ -122,7 +122,7 @@ Find `number_of_orbits` orbits using the given `method` and starting path.
 - `print_path_folder::String="./"`: the folder where to print the path.
 - `options...`: additional options to pass to the optimization method.
 """
-function find_orbits(P::Problem, method::AbstractMethod=OneMethod(BFGS()); number_of_orbits::Union{Int, Float64}=Inf, starting_path_type::Symbol=:random, starting_path::Union{Vector,Nothing}=nothing, show_steps=true, print_path=true, print_path_folder::String="./", options...)
+function find_orbits(P::Problem, method::AbstractMethod=OneMethod(BFGS()); number_of_orbits::Union{Int, Float64}=1, starting_path_type::Symbol=:random, starting_path::Union{Vector,Nothing}=nothing, show_steps=true, print_path=true, print_path_folder::String="./", options...)
     # Set the correct starting path type if the starting path is user-provided
     if ! isnothing(starting_path)
         starting_path_type = :given

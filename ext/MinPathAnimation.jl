@@ -36,11 +36,6 @@ function register_click_interaction!(ax::Axis, t::Observable)
     end
 end
 
-function SymPath.path_animation(filename::String, opts...)
-    P, Γ = SymPath.read_path_from_file(filename)
-    SymPath.path_animation(P, Γ; opts...)
-    return P, Γ
-end
 """
     path_animation(Γ::Coefficients; [period = 12.0, nsteps = 100])
 
@@ -54,7 +49,8 @@ function SymPath.path_animation(P::SymPath.Problem, Γ::Vector; period=12.0, nst
     x = build_path(P, Γ, nsteps)
     path = extend_to_period(P, x)
     dim, N, l = size(path)
-    
+
+
     # Calculate the fps of the animation
     fps = size(path, 3) / period
 

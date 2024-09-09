@@ -114,19 +114,15 @@ end
 function Base.show(io::IO, G::SymmetryGroup)
     println(io, "SymmetryGroup of type ", G.action_type)
     
-    println(io, "ker(τ) ")
-    for g in G.kerT
-        println(io, "  ", g)
-    end
-    println(io, "H0 = ", G.H0)
+    println(io, "\n*  ker(τ): Subgroup of order ", length(G.kerT), "\n")
+
     if G.action_type != Cyclic
-        println(io, "H1 = ", G.H1)
+        println(io, "*  H0 = ", G.H0)
+        println(io, "*  H1 = ", G.H1)
+    else 
+        println(io , "*  g = ", G.g[1])
     end
-    println(io, "Cylic generators: ")
-    for g in G.g
-        println(io, "  ", g)
-    end
-    println(io, "Cyclic order = ", cyclic_order(G))
+    println(io, "*  Cyclic order = ", cyclic_order(G))
 end
 
 function Base.show(io::IO, G::GroupElement)

@@ -69,12 +69,13 @@ function initialize(data::Dict)::Problem
     Ω = Matrix{Float64}(hcat(data["Omega"]...)')         # generator of angular velocity
  
     # If the denominator of the potential energy is given, use it. Otherwise, use the identity function
-    f_raw = "x"
-    f = x -> x
 
     if haskey(data, "denominator")
-        f_raw =  data["denominator"]
-        f = eval(Meta.parse("x -> " *f_raw))
+        f_raw = "x -> "*data["denominator"]
+        f = eval(Meta.parse(f_raw))
+    else 
+        f_raw = "x"
+        f = x -> x
     end
     
     G = SymmetryGroup(action_type, kerT, g, H0, H1)
