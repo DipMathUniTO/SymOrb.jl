@@ -155,6 +155,9 @@ struct Problem{M<:Function, T<:Real}
     Zu::Vector{T}
     Zg::Matrix{T}
     Zh::Matrix{T}
+    Zu::Vector{T}
+    Zg::Matrix{T}
+    Zh::Matrix{T}
     meta::Dict
 end
 

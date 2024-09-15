@@ -69,6 +69,9 @@ function potential(p::Problem, Γ::Vector{T})::T where{T}
 
     # The vector p.Z represents the linear transformation from U(t) to ∫U(t) dt
     p.Zu ⋅ U(p, x)
+
+    # The vector p.Z represents the linear transformation from U(t) to ∫U(t) dt
+    p.Zu ⋅ U(p, x)
 end
 
 """ 
@@ -84,6 +87,8 @@ function ∇potential(p::Problem, Γ::Vector{T})::Vector{T} where T
     # with respect to the Fourier coefficients Ak's (dx_dAk).
     
     p.Zg * ∇U(p, x)
+    
+    p.Zg * ∇U(p, x)
 end
 
 
@@ -95,6 +100,7 @@ Compute the Hessian of the potential part of the action for a given configuratio
 function Hpotential(p::Problem, Γ::Vector{T}) where T
     
     x = build_path(p, Γ)
+
 
 
     # The hessian of the potential part of the action is the discrete integral along the path using the
@@ -201,6 +207,7 @@ function HU(P::Problem, x::Array{T, 3})::Matrix{T} where {T}
     dim, N, steps = size(x)
     dim, N, steps = size(x)
 
+    HU = zeros(T, dim, N, steps, dim, N, steps)
     HU = zeros(T, dim, N, steps, dim, N, steps)
     df = x -> derivative(P.f, x)
     d2f = x -> derivative(df, x)
