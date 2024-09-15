@@ -1,20 +1,3 @@
-function E(n)
-   return real(exp(2*π * im / n))
-end
-
-"""
-    to_julia(el)::GroupElement
-
-Create a GroupElement from the GAP result.
-"""
-function to_julia(el)::GroupElement
-    GG.tuple = GapObj(el)
-    perm::Permutation =  g2j(@gap Permuted([1 .. NOB], tuple[2]^(-1)))
-    matrix::Rotation = eval.(Meta.parse.(hcat(g2j(@gap ConvertToString(tuple[1]))...)))  
-    GroupElement(perm, matrix)    
-end
-
-
 """
     initialize(data::Dict)::Problem
     initialize(filename::String)::Problem
@@ -49,10 +32,15 @@ function initialize(data::Dict)::Problem
     elements = g2j(GG.MinorbInitElements(GG.LSG), recursive=false)
 
     # Extract the elements of the symmetry group
-    kerT = to_julia.(elements[1])
-    g = to_julia.(elements[2])
+    kerT = GroupElement.(elements[1])
+    g = GroupElement.(elements[2])
+
+    kerT = GroupElement.(elements[1])
+    g = GroupElement.(elements[2])
+
     H0, H1 = if action_type != Cyclic
-        to_julia.((elements[3], elements[4]))
+        GroupElement.((elements[3], elements[4]))
+        GroupElement.((elements[3], elements[4]))
     else
         (GroupElement(), GroupElement())
     end
@@ -71,11 +59,11 @@ function initialize(data::Dict)::Problem
     # If the denominator of the potential energy is given, use it. Otherwise, use the identity function
 
     if haskey(data, "denominator")
-        f_raw = "x -> "*data["denominator"]
-        f = eval(Meta.parse(f_raw))
+        f = @RuntimeGeneratedFunction Meta.parse("x -> "*data["denominator"])
+        f = @RuntimeGeneratedFunction Meta.parse("x -> "*data["denominator"])
     else 
-        f_raw = "x"
-        f = x -> x
+        f = identity
+        f = identity
     end
     
     G = SymmetryGroup(action_type, kerT, g, H0, H1)
@@ -87,12 +75,17 @@ function initialize(data::Dict)::Problem
     dx_dA = compute_dx_dA(F, steps)
     dA_dx = compute_dA_dx(F, steps)
 
-    I_factors = compute_integration_factors(steps)
-
+    
+    
     x_to_A = Ri * kron(dA_dx, I(N*dim)) 
     A_to_x = kron(dx_dA, I(N*dim)) * R
-
-    return Problem(N, dim, F, steps, G, m, f, K, dx_dA, dA_dx, A_to_x, x_to_A, Π, R, Ri, I_factors, data)
+    
+    # Matrix to integrate the potential
+    Z = compute_integration_factors(steps)
+    Z_mat = kron(Diagonal(Z), I(N*dim))
+    
+    Zl = (A_to_x' * Z_mat)
+    return Problem(N, dim, F, steps, G, m, f, K, A_to_x, x_to_A, Π, R, Ri, Z, Zl, data)
 
 end
 

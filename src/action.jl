@@ -66,12 +66,9 @@ Compute the potential part of the action for a given configuration ``Γ``.
 """
 function potential(p::Problem, Γ::Vector{T})::T where{T}
     x = build_path(p, Γ)
-    Ut = U(p, x)
-    pot = zero(T)
-    for h ∈ axes(x, 3)
-        pot += p.I_factors[h] * Ut[h]
-    end
-    pot
+
+    # The vector p.Z represents the linear transformation from U(t) to ∫U(t) dt
+    p.Z ⋅ U(p, x)
 end
 
 """ 
@@ -81,19 +78,14 @@ Compute the gradient of the potential part of the action for a given configurati
 """
 function ∇potential(p::Problem, Γ::Vector{T})::Vector{T} where T 
     x = build_path(p, Γ)
-    ∇pot = zeros(T, size(x, 1), size(x, 2), size(p.dx_dA, 2))
-    
+   
     # The gradient of potential part of the action is the discrete integral along the path using the
     # rectangle rule of the gradient potential energy (∇V) times the derivative of the path x 
     # with respect to the Fourier coefficients Ak's (dx_dAk).
 
-    ∇U_t = ∇U(p, x)
+    # The matrix p.Zl is the matrix that represents the linear transformation from ∇U(t) to ∫∇U(t) ∂x/∂A dt
     
-    for k ∈ axes(p.dx_dA, 2), h ∈ axes(x, 3)
-       @views @. ∇pot[:, :, k] += p.I_factors[h] * p.dx_dA[h, k] * ∇U_t[h]
-    end
-
-    p.R'*∇pot[:]
+    p.Zl *  ∇U(p, x) 
 end
 
 
@@ -105,9 +97,6 @@ Compute the Hessian of the potential part of the action for a given configuratio
 function Hpotential(p::Problem, Γ::Vector{T}) where T
     
     x = build_path(p, Γ)
-    F = size(p.dx_dA, 2)
-    dim, N, steps = size(x)
-    Hpot = zeros(T, dim, N, F, dim, N, F) 
 
     # The hessian of the potential part of the action is the discrete integral along the path using the
     # rectangle rule of the hessian potential energy (∇V) times the tensor product of the derivative of the path x 
@@ -115,15 +104,13 @@ function Hpotential(p::Problem, Γ::Vector{T}) where T
     # The second term arising from the prodduct rule, containing the second derivative of the path x 
     # with respect to the Fourier coefficients Ak's (d2x_dAk2) is zero because 
     # the path x is linear in the Fourier coefficients Ak's.
-    
+
+    # The matrix p.Zl and p.A_to_x are the matrices that represents the linear transformation 
+    # from HU(t) to ∫(∂x/∂A)' HU(t) ∂x/∂A dt
+
     HU_t = HU(p, x)
-
-    for h ∈ 1:steps, k ∈ 1:F, j ∈ 1:F
-       @views @. Hpot[:, :, k, :, :, j] += HU_t[h] * p.I_factors[h] * p.dx_dA[h, k] * p.dx_dA[h, j]
-    end
-    H_pot = reshape(Hpot, dim*N*F, dim*N*F)
-
-    return p.R' * H_pot * p.R
+    result = p.Zl * HU_t * p.A_to_x
+    result
 end
 
 
@@ -148,21 +135,25 @@ end
 
 Compute the gradient of the potential at every time step along the path ``x``.
 """
-function ∇U(P::Problem, x::Array{T, 3})::Vector{Array{T, 2}} where {T}
+function ∇U(P::Problem, x::Array{T, 3})::Vector{T} where {T}
+function ∇U(P::Problem, x::Array{T, 3})::Vector{T} where {T}
     dim, N, steps  = size(x)
     ∇U_ij = zeros(T, dim)
-    ∇U = [zeros(T, dim, N) for _ ∈ 1:size(x, 3)]
+    ∇U = zeros(T, dim, N, steps)
     Δx = zeros(T, dim)
     df = x -> derivative(P.f, x)
     for h ∈ 1:steps, i ∈ 1:N-1, j ∈ (i+1):N
         @. Δx = x[:, i, h] - x[:, j, h]
         r = norm(Δx)
         @. ∇U_ij = - P.m[i] * P.m[j] / P.f(r)^2 * df(r) * Δx / r
-        @. ∇U[h][:, i] += ∇U_ij
-        @. ∇U[h][:, j] -= ∇U_ij
+        @. ∇U[:, i, h] += ∇U_ij
+        @. ∇U[:, j, h] -= ∇U_ij
+        @. ∇U[:, i, h] += ∇U_ij
+        @. ∇U[:, j, h] -= ∇U_ij
     end
 
-    return ∇U
+    reshape(∇U, dim*N*steps)
+    reshape(∇U, dim*N*steps)
 end
 
 
@@ -171,30 +162,37 @@ end
 
 Compute the hessian of the potential at every time step along the path ``x``
 """
-function HU(P::Problem, x::Array{T, 3})::Vector{Array{T, 4}} where {T} 
+function HU(P::Problem, x::Array{T, 3})::Matrix{T} where {T} 
+function HU(P::Problem, x::Array{T, 3})::Matrix{T} where {T} 
     
-    dim, N, _ = size(x)
+    dim, N, steps = size(x)
+    dim, N, steps = size(x)
 
-    HU = [zeros(T, dim, N, dim, N) for _ in axes(x, 3)]
+    HU = zeros(T, dim, N,  steps, dim, N, steps)
     df = x -> derivative(P.f, x)
     d2f = x -> derivative(df, x)
 
     Δx = zeros(T, dim)
     HU_ij = zeros(T, dim, dim)
+    
 
     for h ∈ axes(x, 3), i ∈ 1:N-1, j ∈ (i+1):N
         @. Δx = x[:, i, h] - x[:, j, h]
         r = norm(Δx)
+        HU_ij .= - P.m[i] * P.m[j] / (P.f(r) * r)^2 * ( (Δx * Δx') * ( d2f(r) - df(r)/r - 2*df(r)^2 / P.f(r) ) +  I * df(r) * r)
 
-        HU_ij .= - P.m[i] * P.m[j] / (P.f(r) * r)^2 * ( (Δx * Δx') * ( d2f(r) - df(r)/r - 2*df(r)^2 / P.f(r) ) + I * df(r) * r)
-
-        @. HU[h][:, i, :, i] += HU_ij
-        @. HU[h][:, j, :, j] += HU_ij
-        @. HU[h][:, i, :, j] -= HU_ij
-        @. HU[h][:, j, :, i] -= HU_ij
+        @. HU[:, i, h, :, i, h] += HU_ij
+        @. HU[:, j, h, :, j, h] += HU_ij
+        @. HU[:, i, h, :, j, h] -= HU_ij
+        @. HU[:, j, h, :, i, h] -= HU_ij
+        @. HU[:, i, h, :, i, h] += HU_ij
+        @. HU[:, j, h, :, j, h] += HU_ij
+        @. HU[:, i, h, :, j, h] -= HU_ij
+        @. HU[:, j, h, :, i, h] -= HU_ij
     end 
 
-    HU
+    reshape(HU, dim*N*steps, dim*N*steps)
+    reshape(HU, dim*N*steps, dim*N*steps)
 end
 
 

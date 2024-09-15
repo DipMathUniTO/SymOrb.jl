@@ -27,6 +27,72 @@ struct GroupElement
 end
 GroupElement() = GroupElement(Permutation([]), Rotation(undef, 0, 0))
 
+
+"""
+    GroupElement(el)::GroupElement
+
+Create a GroupElement from the GAP result.
+"""
+function GroupElement(el::GapObj)::GroupElement
+    GG.tuple = GapObj(el)
+    perm::Permutation =  g2j(@gap Permuted([1 .. NOB], tuple[2]^(-1)))
+    gap_matrix = GG.tuple[1]
+    dim =  GG.NumberRows( gap_matrix ) 
+    matrix = zeros(dim, dim)
+    for i ∈ 1:dim, j ∈ 1:dim
+        if typeof(gap_matrix[i][j]) <: Number || GG.IsRat(gap_matrix[i][j])
+            matrix[i,j] = g2j(gap_matrix[i][j])
+        elseif GG.IsCyclotomic(gap_matrix[i][j])
+            matrix[i,j] = cyclotomic_to_float(gap_matrix[i][j])
+        else 
+            error("Cannot understand GAP output")
+        end
+    end
+    GroupElement(perm, matrix)    
+end
+ 
+ function cyclotomic_to_float(cycl)
+     N = GG.Conductor(cycl)
+     coefficients = g2j(GG.CoeffsCyc(cycl, N))
+     E(n) =  real(exp(2*π * im / n))
+     sum(c*E(i) for (i,c) in enumerate(coefficients))
+ end
+ 
+ 
+
+
+"""
+    GroupElement(el)::GroupElement
+
+Create a GroupElement from the GAP result.
+"""
+function GroupElement(el::GapObj)::GroupElement
+    GG.tuple = GapObj(el)
+    perm::Permutation =  g2j(@gap Permuted([1 .. NOB], tuple[2]^(-1)))
+    gap_matrix = GG.tuple[1]
+    dim =  GG.NumberRows( gap_matrix ) 
+    matrix = zeros(dim, dim)
+    for i ∈ 1:dim, j ∈ 1:dim
+        if typeof(gap_matrix[i][j]) <: Number || GG.IsRat(gap_matrix[i][j])
+            matrix[i,j] = g2j(gap_matrix[i][j])
+        elseif GG.IsCyclotomic(gap_matrix[i][j])
+            matrix[i,j] = cyclotomic_to_float(gap_matrix[i][j])
+        else 
+            error("Cannot understand GAP output")
+        end
+    end
+    GroupElement(perm, matrix)    
+end
+ 
+ function cyclotomic_to_float(cycl)
+     N = GG.Conductor(cycl)
+     coefficients = g2j(GG.CoeffsCyc(cycl, N))
+     E(n) =  real(exp(2*π * im / n))
+     sum(c*E(i) for (i,c) in enumerate(coefficients))
+ end
+ 
+ 
+
 """
 The symmetry group of the minimization problem
 
@@ -81,14 +147,13 @@ struct Problem{M<:Function, T<:Real}
     m::Vector{T}
     f::M
     K::Matrix{T}
-    dx_dA::Matrix{T}
-    dA_dx::Matrix{T}
     A_to_x::Matrix{T}
     x_to_A::Matrix{T}
     Π::Matrix{T}
     R::Matrix{T}
     Ri::Matrix{T}
-    I_factors::Vector{T}
+    Z::Vector{T}
+    Zl::Matrix{T}
     meta::Dict
 end
 

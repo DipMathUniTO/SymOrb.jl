@@ -7,7 +7,10 @@ using NLsolve: nlsolve, NLsolve
 using Optim: optimize, Options, Optim
 using Printf: @sprintf
 using Base: @kwdef, kron
+using RuntimeGeneratedFunctions
 import TOML
+
+RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("types.jl")
 include("path.jl")
