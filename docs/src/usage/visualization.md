@@ -30,15 +30,12 @@ or
 
 ### Example
 
-```@repl
-using SymPath, GLMakie
-P, Γ = read_path_from_file("7.4797.toml")
+```julia
 path_animation(P, Γ)
 ```
 
 Or, if you want to load the path directly from the file:
 
-```@repl
-using SymPath, GLMakie 
+```julia
 path_animation("7.4797.toml")
 ```
