@@ -7,3 +7,7 @@ pages = [
     "APIs.md"
     ]
 )
+
+deploydocs(
+    repo = "github.com/susorb/SymPath.jl.git",
+)
