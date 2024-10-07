@@ -42,7 +42,12 @@ function initialize(data::Dict)::Problem
     end
 
     m = convert.(Float64, data["m"])    # the masses
-    F = data["F"]::Int                  # number of Fourier series terms
+    F = if haskey(data, "F")
+        data["F"]::Int                  # number of Fourier series terms
+    else 
+        24
+    end
+    
     dims = (F, N, dim)
     steps = if haskey(data, "steps")   # number of steps in the discretization of time [0,π]    
         data["steps"]::Int
@@ -50,7 +55,11 @@ function initialize(data::Dict)::Problem
         2 * F
     end            
 
-    Ω = Matrix{Float64}(hcat(data["Omega"]...)')         # generator of angular velocity
+    if haskey(data, "Omega")
+        Ω = Matrix{Float64}(hcat(data["Omega"]...)')         # generator of angular velocity
+    else
+        Ω = zeros(dim, N)
+    end
  
     # If the denominator of the potential energy is given, use it. Otherwise, use the identity function
 
