@@ -111,7 +111,11 @@ function Hpotential(p::Problem, Γ::Vector{T}) where T
 
 end
 
+"""
+   U(P, x::Array{T, 3})::Vector{T}
 
+Compute the potential for the configuration ``x`` (fixed-time potential).
+"""
 function U_t( x::AbstractArray{T, 2}, m::Vector, f::Function) where T
     N = size(x, 2)
     pot = 0.0
@@ -138,7 +142,11 @@ function U(P, x::Array{T, 3})::Vector{T} where T
 end
 
 
+"""
+    ∇U_t!(grad::AbstractArray{T, 2}, x::AbstractArray{T, 2}, m::Vector, f::Function, df::Function) where T
 
+Compute the gradient of the potential for the configuration``x``. The gradient is stored in the array ``grad``.
+"""
 function ∇U_t!(grad::AbstractArray{T, 2}, x::AbstractArray{T, 2}, m::Vector, f::Function, df::Function) where T
     N = size(x, 2)
     for i ∈ 1:N-1, j ∈ (i+1):N
@@ -169,7 +177,11 @@ function ∇U(P::Problem, x::Array{T, 3})::Vector{T} where {T}
     reshape(∇U, dim*N*steps)
 end
 
+"""
+    HU_t!(hessian::AbstractArray{T, 4},  x::AbstractArray{T, 2}, m::Vector, f::Function, df::Function, d2f::Function) where T
 
+Compute the hessian of the potential for the configuration ``x``. The hessian is stored in the array ``hessian``.
+"""
 function HU_t!(hessian::AbstractArray{T, 4},  x::AbstractArray{T, 2}, m::Vector, f::Function, df::Function, d2f::Function) where T
     N = size(x, 2)
 
