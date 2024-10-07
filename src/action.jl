@@ -164,7 +164,6 @@ end
 Compute the gradient of the potential at every time step along the path ``x``.
 """
 function ∇U(P::Problem, x::Array{T, 3})::Vector{T} where {T}
-function ∇U(P::Problem, x::Array{T, 3})::Vector{T} where {T}
     dim, N, steps  = size(x)
     ∇U =  zeros(T, dim, N, steps)
 
@@ -201,7 +200,6 @@ end
 
 Compute the hessian of the potential at every time step along the path ``x``
 """
-function HU(P::Problem, x::Array{T, 3})::Matrix{T} where {T} 
 function HU(P::Problem, x::Array{T, 3})::Matrix{T} where {T} 
     
     dim, N, steps = size(x)
