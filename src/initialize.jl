@@ -35,11 +35,7 @@ function initialize(data::Dict)::Problem
     kerT = GroupElement.(elements[1])
     g = GroupElement.(elements[2])
 
-    kerT = GroupElement.(elements[1])
-    g = GroupElement.(elements[2])
-
     H0, H1 = if action_type != Cyclic
-        GroupElement.((elements[3], elements[4]))
         GroupElement.((elements[3], elements[4]))
     else
         (GroupElement(), GroupElement())
@@ -60,9 +56,7 @@ function initialize(data::Dict)::Problem
 
     if haskey(data, "denominator")
         f = @RuntimeGeneratedFunction Meta.parse("x -> "*data["denominator"])
-        f = @RuntimeGeneratedFunction Meta.parse("x -> "*data["denominator"])
     else 
-        f = identity
         f = identity
     end
     
@@ -76,16 +70,8 @@ function initialize(data::Dict)::Problem
     dA_dx = compute_dA_dx(F, steps)
 
     
-    
     x_to_A = Ri * kron(dA_dx, I(N*dim)) 
     A_to_x = kron(dx_dA, I(N*dim)) * R
-    
-    # Matrix to integrate the potential
-    Zu = compute_integration_factors(steps)
-    Zg = Matrix((kron(Zu, ones(N*dim)) .* A_to_x)') 
-    Zh = Matrix((kron(Zu', I(N*dim)) * A_to_x )')
-
-    return Problem(N, dim, F, steps, G, m, f, K, A_to_x, x_to_A, Π, R, Ri, Zu, Zg, Zh, data)
     
     # Matrix to integrate the potential
     Zu = compute_integration_factors(steps)
