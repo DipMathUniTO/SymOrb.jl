@@ -1,3 +1,9 @@
 using Documenter, SymPath
 
-makedocs(sitename="SymPath.jl")
+makedocs(format=Documenter.HTML(ansicolor=true), sitename="SymPath.jl",
+pages = [
+    "index.md",
+    "installation.md",
+    "APIs.md"
+    ]
+)
