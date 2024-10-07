@@ -112,6 +112,16 @@ function Hpotential(p::Problem, Γ::Vector{T}) where T
 end
 
 
+function U_t( x::AbstractArray{T, 2}, m::Vector, f::Function) where T
+    N = size(x, 2)
+    pot = 0.0
+    for i ∈ 1:N-1, j ∈ (i+1):N
+        pot += m[i] * m[j] / f(norm(x[:, i] - x[:, j]))
+    end
+    return pot
+end
+
+
 """
    U(P, x::Array{T, 3})::Vector{T}
 
@@ -120,13 +130,27 @@ Compute the potential at every time step along the path ``x``.
 function U(P, x::Array{T, 3})::Vector{T} where T
     N = size(x, 2)
     V = zeros(T, size(x, 3))
-    for h ∈ axes(x,3), i ∈ 1:N-1, j ∈ (i+1):N
-        Δx = x[:, i, h] - x[:, j, h]
-        V[h] += P.m[i] * P.m[j] /  P.f(norm(Δx)) 
+    for h ∈ axes(x,3)
+        @views V[h] += U_t(x[:, :, h], P.m, P.f)
     end
 
     return V
 end
+
+
+
+function ∇U_t!(grad::AbstractArray{T, 2}, x::AbstractArray{T, 2}, m::Vector, f::Function, df::Function) where T
+    N = size(x, 2)
+    for i ∈ 1:N-1, j ∈ (i+1):N
+        Δx = x[:, i] - x[:, j]
+        r = norm(Δx)
+        ∇U_ij = - m[i] * m[j] / f(r)^2 * df(r) * Δx / r
+        @views @. grad[:, i] += ∇U_ij
+        @views @. grad[:, j] -= ∇U_ij
+    end
+end
+
+
 
 """
     ∇U(Γ::Coefficients, [n::Int = steps+1])::AbstractVector
@@ -136,23 +160,34 @@ Compute the gradient of the potential at every time step along the path ``x``.
 function ∇U(P::Problem, x::Array{T, 3})::Vector{T} where {T}
 function ∇U(P::Problem, x::Array{T, 3})::Vector{T} where {T}
     dim, N, steps  = size(x)
-    ∇U_ij = zeros(T, dim)
     ∇U =  zeros(T, dim, N, steps)
-    Δx = zeros(T, dim)
+
     df = x -> derivative(P.f, x)
-    for h ∈ 1:steps, i ∈ 1:N-1, j ∈ (i+1):N
-        @. Δx = x[:, i, h] - x[:, j, h]
-        r = norm(Δx)
-        @. ∇U_ij = - P.m[i] * P.m[j] / P.f(r)^2 * df(r) * Δx / r
-        @. ∇U[:, i, h] += ∇U_ij
-        @. ∇U[:, j, h] -= ∇U_ij
-        @. ∇U[:, i, h] += ∇U_ij
-        @. ∇U[:, j, h] -= ∇U_ij
+    for h ∈ 1:steps
+        @views ∇U_t!(∇U[:, :, h], x[:, :, h], P.m, P.f, df)
     end
 
     reshape(∇U, dim*N*steps)
     reshape(∇U, dim*N*steps)
 end
+
+
+function HU_t!(hessian::AbstractArray{T, 4},  x::AbstractArray{T, 2}, m::Vector, f::Function, df::Function, d2f::Function) where T
+    N = size(x, 2)
+
+    for i ∈ 1:N-1, j ∈ (i+1):N
+        Δx = x[:, i] - x[:, j]
+        r = norm(Δx)
+
+        HU_ij = - m[i] * m[j] / (f(r) * r)^2 * ( (Δx * Δx') * ( d2f(r) - df(r)/r - 2*df(r)^2 / f(r) ) + I * df(r) * r)
+
+        @views @. hessian[:, i, :, i] += HU_ij
+        @views @. hessian[:, j, :, j] += HU_ij
+        @views @. hessian[:, i, :, j] -= HU_ij
+        @views @. hessian[:, j, :, i] -= HU_ij
+    end
+end
+
 
 
 """ 
@@ -169,29 +204,15 @@ function HU(P::Problem, x::Array{T, 3})::Matrix{T} where {T}
     HU = zeros(T, dim, N, steps, dim, N, steps)
     df = x -> derivative(P.f, x)
     d2f = x -> derivative(df, x)
-
-    Δx = zeros(T, dim)
-    HU_ij = zeros(T, dim, dim)
-
-    for h ∈ axes(x, 3), i ∈ 1:N-1, j ∈ (i+1):N
-        @. Δx = x[:, i, h] - x[:, j, h]
-        r = norm(Δx)
-
-        HU_ij .= - P.m[i] * P.m[j] / (P.f(r) * r)^2 * ( (Δx * Δx') * ( d2f(r) - df(r)/r - 2*df(r)^2 / P.f(r) ) + I * df(r) * r)
-
-        @. HU[:, i, h, :, i, h] += HU_ij
-        @. HU[:, j, h, :, j, h] += HU_ij
-        @. HU[:, i, h, :, j, h] -= HU_ij
-        @. HU[:, j, h, :, i, h] -= HU_ij
-        @. HU[:, i, h, :, i, h] += HU_ij
-        @. HU[:, j, h, :, j, h] += HU_ij
-        @. HU[:, i, h, :, j, h] -= HU_ij
-        @. HU[:, j, h, :, i, h] -= HU_ij
+    
+    for h ∈ axes(x, 3)
+        HU_t!((@view HU[:, :, h, :, :, h]), (@view x[:, :, h]), P.m, P.f, df, d2f)
     end 
 
     reshape(HU, dim*N*steps, dim*N*steps)
     reshape(HU, dim*N*steps, dim*N*steps)
 end
+
 
 
 """
