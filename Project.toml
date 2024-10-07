@@ -1,6 +1,6 @@
 name = "SymPath"
 uuid = "342ca686-5476-4651-a9b9-f19fc25398e9"
-version = "0.2.0"
+version = "0.1.0"
 
 [deps]
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
