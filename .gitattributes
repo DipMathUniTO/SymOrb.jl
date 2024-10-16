@@ -1,2 +1,1 @@
-*.gi linguist-detectable=false
-*.gd linguist-detectable=false
+src/gap/** linguist-detectable=false
