@@ -7,7 +7,7 @@ Note that it outputs a `Problem` object and a `Path` object.
 ### Example
 
 ```@repl
-using SymPath # hide
+using SymOrb # hide
 P, Γ = read_path_from_file("7.4797.toml") 
 ```
 

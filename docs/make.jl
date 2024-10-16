@@ -1,6 +1,6 @@
-using Documenter, SymPath
+using Documenter, SymOrb
 
-makedocs(format=Documenter.HTML(ansicolor=true), sitename="SymPath.jl", remotes=nothing,
+makedocs(format=Documenter.HTML(ansicolor=true), sitename="SymOrb.jl", remotes=nothing,
 pages = [
     "index.md",
     "installation.md",
@@ -14,5 +14,5 @@ pages = [
 )
 
 deploydocs(
-    repo = "github.com/susorb/SymPath.jl.git",
+    repo = "github.com/DipMathUniTO/SymOrb.jl.git",
 )

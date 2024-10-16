@@ -1,4 +1,4 @@
-module SymPath
+module SymOrb
 
 using LinearAlgebra
 using ForwardDiff: derivative
@@ -22,7 +22,7 @@ include("minimization.jl")
 
 export find_orbits, initialize_and_find_orbits, initialize
 export print_path_to_file, path_animation, refine_path, read_path_from_file
-export Newton, BFGS, ConjugateGradient, Methods, CompoundMethod, OneMethod, TwoMethods, MinimizationResult
+export Newton, BFGS, ConjugateGradient, Methods, CompoundMethod, OneMethod, TwoMethods, InitMinimizeMethod, MinimizationResult
 export morse_index
 
 end

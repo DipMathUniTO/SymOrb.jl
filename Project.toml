@@ -1,4 +1,4 @@
-name = "SymPath"
+name = "SymOrb"
 uuid = "342ca686-5476-4651-a9b9-f19fc25398e9"
 version = "0.1.0"
 
@@ -19,7 +19,7 @@ GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 
 [extensions]
-MinPathAnimation = ["GLMakie", "LaTeXStrings"]
+SymOrbAnimation = ["GLMakie", "LaTeXStrings"]
 
 [extras]
 SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"

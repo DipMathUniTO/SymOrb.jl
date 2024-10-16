@@ -50,7 +50,7 @@ The `starting_path_type` argument can be one of the following:
 ## Example
 
 ```@repl
-using SymPath; P = initialize("example.toml") # hide
+using SymOrb; P = initialize("example.toml") # hide
 result = find_orbits(P, OneMethod(BFGS()), number_of_orbits=1)
 ```
 

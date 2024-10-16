@@ -1,5 +1,5 @@
-module MinPathAnimation
-using SymPath: SymPath, action, ∇action, K_energy, U, build_path, extend_to_period
+module SymOrbAnimation
+using SymOrb: SymOrb, action, ∇action, K_energy, U, build_path, extend_to_period
 using GLMakie, LaTeXStrings, LinearAlgebra
 
 """
@@ -44,7 +44,7 @@ show the path of the bodies, the energy of the system, the relative distance bet
 the action, the norm of the gradient of the action, and the dispersion of the energy. The animation
 will have a period of `period` seconds and path will be composed by `nsteps` steps.
 """
-function SymPath.path_animation(P::SymPath.Problem, Γ::Vector; period=12.0, nsteps=100)
+function SymOrb.path_animation(P::SymOrb.Problem, Γ::Vector; period=12.0, nsteps=100)
     # Calculate the path from the Fourier coefficients
     x = build_path(P, Γ, nsteps)
     path = extend_to_period(P, x)

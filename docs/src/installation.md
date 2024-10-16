@@ -2,7 +2,7 @@
 
 
 !!! warning 
-    `SymPath` uses, to interface to the GAP package `symorb`, the package `GAP.jl` that is not supported on Windows. However, you can still use `SymPath` on Windows by using Windows Subsystem for Linux (WSL). [^1]
+    `SymOrb` uses, to interface to the GAP package `symorb`, the package `GAP.jl` that is not supported on Windows. However, you can still use `SymOrb` on Windows by using Windows Subsystem for Linux (WSL). [^1]
 
 ### Step 0: Install and configure WSL (Windows only)
 !!! info
@@ -31,11 +31,11 @@ Open a shell and type the following command to install `juliaup`:
 $ curl -fsSL https://install.julialang.org | sh -s -- -y
 ``` 
 
-### Step 2: Install `SymPath` (all platforms)
+### Step 2: Install `SymOrb` (all platforms)
 !!! info
-    `SymPath.jl` is not yet registered in the Julia General registry. Therefore, you need to install it directly from the GitHub repository.
+    `SymOrb.jl` is not yet registered in the Julia General registry. Therefore, you need to install it directly from the GitHub repository.
 
-In the following, it is assumed that you want to create a new project where you will use `SymPath`. If you want to install `SymPath` in an existing project, you can skip the first two steps.
+In the following, it is assumed that you want to create a new project where you will use `SymOrb`. If you want to install `SymOrb` in an existing project, you can skip the first two steps.
 
 
 Julia projects are simply directories that contain a `Project.toml` file. 
@@ -44,19 +44,19 @@ Hence, first of all, create a new directory. If you are using Windows, make sure
 
 Then, to generate the required `Project.toml` and `Manifest.toml` files, open a `Bash` shell in that directory and launch the Julia REPL by typing `julia --project` and pressing `Enter`.
 
-To install `SymPath`, you need to access the Julia package manager by typing `]`. You will notice that the prompt changes to `(v1.xx) pkg>`. Then, type the following command and press `Enter`:
+To install `SymOrb`, you need to access the Julia package manager by typing `]`. You will notice that the prompt changes to `(v1.xx) pkg>`. Then, type the following command and press `Enter`:
 ```julia
-(v1.xx) pkg> add https://github.com/susorb/SymPath.jl
+(v1.xx) pkg> add https://github.com/susorb/SymOrb.jl
 ```
 
 To exit the package manager, simply press `Backspace` to return to the Julia REPL.
 
-To check that `SymPath` has been correctly installed, type the following command in the Julia REPL:
+To check that `SymOrb` has been correctly installed, type the following command in the Julia REPL:
 ```@repl
-using SymPath
+using SymOrb
 ```
 
-If no error message is displayed, then `SymPath` has been correctly installed.
+If no error message is displayed, then `SymOrb` has been correctly installed.
 
 
 [^1]: [https://learn.microsoft.com/en-us/windows/wsl/install]

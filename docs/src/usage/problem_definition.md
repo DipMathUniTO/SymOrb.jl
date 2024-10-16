@@ -52,7 +52,7 @@ Omega = [
 A problem can be loaded using the `initialize` function. The function receives the path to the TOML file and returns a `Problem` object.
 
 ```@repl 
-using SymPath # hide
+using SymOrb # hide
 P = initialize("example.toml")
 ```
 

@@ -2,32 +2,32 @@
 
 ## Types
 ```@autodocs
-Modules = [SymPath]
+Modules = [SymOrb]
 Pages = ["types.jl"]
 ```
 
 
 ## Problem definition and minimization
 ```@autodocs
-Modules = [SymPath]
+Modules = [SymOrb]
 Pages = ["initialize.jl", "minimization.jl"]
 ```
 
 ## Action computation
 ```@autodocs
-Modules = [SymPath]
+Modules = [SymOrb]
 Pages = ["action.jl"]
 ```
 
 ## Projectors and operators
 ```@autodocs
-Modules = [SymPath]
+Modules = [SymOrb]
 Pages = ["projectors.jl, matrices.jl"]
 ```
 
 
 ## Paths
 ```@autodocs
-Modules = [SymPath]
+Modules = [SymOrb]
 Pages = ["path.jl"]
 ```
