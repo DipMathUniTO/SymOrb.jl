@@ -1,0 +1,20 @@
+symmetry_name = "3d_cyclic"
+NOB = 3
+dim = 3
+m =  [1,1,1]
+
+# Group generators
+action_type = 0
+kern = "TrivialKerTau(3)"
+rotV = "[[1, 0, 0], [0, 1, 0], [0, 0, 1] ]"
+rotS = "(1,2,3)"
+
+# Other configs
+F = 24
+Omega =  [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0]
+]
+
+
