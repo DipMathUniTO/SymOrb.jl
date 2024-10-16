@@ -50,12 +50,21 @@ function GroupElement(el::GapObj)::GroupElement
     end
     GroupElement(perm, matrix)    
 end
+
+function E(n)
+    if n == 0
+        1
+    else
+        exp(2*π * im / n)
+    end
+end 
+
  
  function cyclotomic_to_float(cycl)
+
      N = GG.Conductor(cycl)
      coefficients = g2j(GG.CoeffsCyc(cycl, N))
-     E(n) =  real(exp(2*π * im / n))
-     sum(c*E(i) for (i,c) in enumerate(coefficients))
+    real(sum(c*E(N)^(i-1) for (i,c) in enumerate(coefficients)))
  end
  
  
@@ -125,6 +134,19 @@ struct Problem{M<:Function, T<:Real}
     Zh::Matrix{T}
     meta::Dict
 end
+
+
+struct Params{F}
+    N::Int
+    dim::Int
+    F::Int
+    steps::Int
+    f::F
+    m::Vector{Float64}
+    T::Float64
+    d::Float64
+end
+
 
 """
     Base.show(io::IO, P::Problem)
