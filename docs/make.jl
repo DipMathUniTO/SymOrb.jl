@@ -2,7 +2,7 @@ using Documenter, SymOrb
 
 makedocs(format=Documenter.HTML(ansicolor=true), sitename="SymOrb.jl", remotes=nothing,
 pages = [
-    "index.md",
+    "Home" => "index.md",
     "installation.md",
     "Basic usage" => [
         "usage/problem_definition.md",
