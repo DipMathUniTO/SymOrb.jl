@@ -27,6 +27,16 @@ function ϕg_n(gs::Vector{GroupElement})::Vector{Matrix}
 end
 
 """
+    ϕ(g::GroupElement, x::Array{T, 2})::Array{T, 2} where T <: Real
+
+Apply the action of a group element `g` ∈ G on the configuration `x`
+"""
+function ϕ(g::GroupElement, x::Array{T, 2})::Array{T, 2} where T <: Real
+    dim, N = size(x)
+    reshape(ϕ(g) * x[:], dim, N)
+end
+
+"""
     π_H(H::Vector{GroupElement})::Matrix 
     π_H(H::GroupElement)::Matrix
 
