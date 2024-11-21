@@ -26,7 +26,6 @@ function ϕg_n(gs::Vector{GroupElement})::Vector{Matrix}
     end
 end
 
-
 """
     π_H(H::Vector{GroupElement})::Matrix 
     π_H(H::GroupElement)::Matrix
@@ -49,7 +48,11 @@ function π_bc(G::SymmetryGroup, dims)::Matrix{Float64}
 
     if (G.action_type == Cyclic)
         M[:,  1 , :,  1 ] = I(N*dim)/2
-        M[:,  1 , :, F+2] = ϕg_n(G.g)[end - 1] / 2
+        if length(ϕg_n(G.g)) > 1 
+            M[:,  1 , :, F+2] = ϕg_n(G.g)[end - 1] / 2
+        else 
+            M[:,  1 , :, F+2] = I(N*dim)/2
+        end
         M[:, F+2, :,  1 ] = ϕg_n(G.g)[1] / 2
         M[:, F+2, :, F+2] = I(N*dim)/2
     else
