@@ -99,34 +99,28 @@ Extend the path ``x`` form the fundamental domain I = [0, π] to a full period.
 """
 function extend_to_period(P::Problem, x::Array{T, 3})::Array{T, 3} where T<:Real
 
-    dim, N, n = size(x)
+    dim, N, steps = size(x)
+    n = steps - 1
+    b = P.G.action_type == Cyclic ? 1 : 2
+    
+    complete_path = zeros(dim, N, b*n*cyclic_order(P.G) + 1) 
+    complete_path[:, :, 1:steps] .= x
 
-    initial_path = zeros(dim, N, 2n-1)
-    
-    # The first half of the path is the same as the original path
-    initial_path[:, :, 1:n] = copy(x[:, :, 1:n])
-    
-    
-    # The second half of the path is the reflection of the first half if the action is not Cyclic
-    if P.G.action_type == Cyclic
-        max_index = n
-    else
-        max_index = 2n - 1 
-        for k ∈ 1:n-1
-            initial_path[:, :, n+k] = reshape(ϕ(P.G.H1) * initial_path[:, :, n-k][:], dim, N)
+    # If the group is not cyclic, we first need to add the reflection of the path
+    if P.G.action_type != Cyclic
+        for k ∈ 1:n
+            complete_path[:, :, steps + k] = ϕ(P.G.H1, x[:, :, steps - k])
         end
+        n *= b
     end
 
-    complete_path =  zeros(dim, N, max_index * cyclic_order(P.G)) 
-    
     # If the cyclic order is greater than 1, we need to add the images of the path under the group action
-    for j ∈ 1:cyclic_order(P.G), k ∈ 1:max_index
-        complete_path[:, :, max_index * (j-1) + k] =  reshape(ϕg_n(P.G.g)[j] *  initial_path[:, :, k][:], dim, N)
+    for j ∈ 2:cyclic_order(P.G), k ∈ 1:n
+        complete_path[:, :, n * (j-1) + k] .=  ϕ(P.G.g[j-1], complete_path[:, :, k])
     end
-
 
     # Finally, we add the starting point of the path to close the loop
-    complete_path[:, :, end] = reshape(ϕg_n(P.G.g)[1] *  initial_path[:, :, 1][:], dim, N) 
+    complete_path[:, :, end] = complete_path[:, :, 1] 
 
     return complete_path
 end
@@ -137,27 +131,28 @@ end
 Extend the function ``f`` form the fundamental domain I = [0, π] to a full period.
 """
 function extend_to_period(P::Problem, f::Vector{T})::Vector{T} where {T}
-    n = lastindex(f)
+    steps = length(f)
+    n = steps - 1
+    b = P.G.action_type == Cyclic ? 1 : 2
+    
+    complete_f = zeros(b*n*cyclic_order(P.G) + 1) 
+    complete_f[1:steps] .= f
 
-    initial_f = zeros(2n - 1)
-    
-    initial_f[1:n] = copy(f[1:n])
-    
-    if P.G.action_type == Cyclic
-        max_index = n
-    else
-        max_index = 2n-1
-        for k ∈ 1:n-1
-            initial_f[n+k] = initial_f[n-k]
+    # If the group is not cyclic, we first need to add the reflection of the function
+    if P.G.action_type != Cyclic
+        for k ∈ 1:n
+            complete_f[steps + k] = f[steps - k]
         end
-    end
-    complete_f = zeros( max_index * cyclic_order(P.G))
-
-    for j ∈ 1:cyclic_order(P.G), k ∈ 1:max_index
-        complete_f[ max_index * (j-1) + k ] = initial_f[k]
+        n *= b
     end
 
-    complete_f[end] = initial_f[1]
+    # If the cyclic order is greater than 1, we need to copy the function
+    for j ∈ 2:cyclic_order(P.G), k ∈ 1:n
+        complete_f[n * (j-1) + k] =  complete_f[k]
+    end
+
+    # Finally, we add the starting point
+    complete_f[end] = complete_f[1] 
 
     return complete_f
 end
