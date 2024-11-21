@@ -182,12 +182,6 @@ function read_path_from_file(filename::String)::Tuple{Problem, Vector}
     return P, data["path"]
 end
 
-function path_animation()
-    error("GLMakie must be loaded")
-end
-
-function SymOrb.path_animation(filename::String, opts...)
-    P, Γ = SymOrb.read_path_from_file(filename)
-    SymOrb.path_animation(P, Γ; opts...)
-    return P, Γ
+function path_animation(args...; kwargs...)
+    error("GLMakie must be loaded first!")
 end

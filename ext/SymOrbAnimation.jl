@@ -204,4 +204,12 @@ function SymOrb.path_animation(P::SymOrb.Problem, Γ::Vector; period=12.0, nstep
     end
 
 end
+
+
+function SymOrb.path_animation(filename::String, opts...)
+    P, Γ = SymOrb.read_path_from_file(filename)
+    SymOrb.path_animation(P, Γ; opts...)
+    return P, Γ
+end
+
 end
