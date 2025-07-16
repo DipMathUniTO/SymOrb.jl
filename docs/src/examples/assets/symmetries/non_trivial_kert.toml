@@ -1,0 +1,17 @@
+symmetry_name = "non_trivial_kert"
+NOB = 4
+dim = 3
+m = [1, 1, 1, 1]
+
+# Group generators
+action_type = 0
+kern = "GroupWithGenerators([Tuple([RotationMatrixDim3(4)*[[1,0,0],[0,1,0],[0,0,-1]],(1,2,3,4)])]);"
+rotV = "[[-1,0,0],[0,-1,0],[0,0,-1]]"
+rotS = "()"
+refV = "[[1,0,0],[0,1,0],[0,0,1]]"
+refS = "()"
+
+# Other configs
+F = 24
+Omega = [[0, 0], [0, 0]]
+

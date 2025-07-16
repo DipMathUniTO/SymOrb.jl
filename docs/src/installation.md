@@ -1,5 +1,11 @@
 # Installation
 
+## Requirements
+- Julia `1.10` or later
+- OS: Linux or macOS. To run `SymOrb.jl` on Windows, WSL is required (see Step 0 below) 
+- [Optional] An OpenGL compatible GPU (for animations). All latest GPUs should work out of the box.
+- [Recommended] 8 GB of RAM memory
+
 
 !!! warning 
     `SymOrb` uses, to interface to the GAP package `symorb`, the package `GAP.jl` that is not supported on Windows. However, you can still use `SymOrb` on Windows by using Windows Subsystem for Linux (WSL). [^1]
