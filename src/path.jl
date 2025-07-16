@@ -163,9 +163,11 @@ end
 
 Print the information about `P` and the Fourier coefficients of the path ``Γ`` to the file named `filename`.
 """
-function print_path_to_file(P, Γ, filename)
+function print_path_to_file(P, Γ, starting_path, filename, method="")
     data = copy(P.meta)
     data["path"] = Γ
+    data["starting_path"] = starting_path
+    data["method"] = string(method)
     open(filename, "w") do io
         TOML.print(io, data)
     end

@@ -66,7 +66,7 @@ end
     out_path = joinpath(tempdir, "test.toml")
     
     Γ = SymOrb.circular_starting_path(P)
-    SymOrb.print_path_to_file(P, Γ, out_path)
+    SymOrb.print_path_to_file(P, Γ, Γ, out_path)
     
     P1, Γ1 = SymOrb.read_path_from_file(out_path)
 

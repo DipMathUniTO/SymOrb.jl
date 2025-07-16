@@ -3,7 +3,7 @@ function log_if(variable, expr...; color=:normal, bold=false)
     if variable printstyled(expr..., color=color, bold=bold) end
 end
 
-has_converged(res::Optim.OptimizationResults)::Bool = (res.x_converged || res.f_converged || res.g_converged)
+has_converged(res::Optim.OptimizationResults)::Bool = (Optim.x_converged(res) || Optim.f_converged(res) || Optim.g_converged(res))
 has_converged(res::NLsolve.SolverResults)::Bool = (res.x_converged || res.f_converged)
 
 """ 
@@ -14,14 +14,14 @@ Wrappers around the minimization libraries
 """ 
 function perform_optimization(P::Problem, Γ0::Vector, method::NLSolveMethod)::Tuple{Vector, Int, Bool}
 
-    res = nlsolve(x -> ∇action(P, x), x -> Haction(P, x), Γ0, method=method.f_name, iterations=method.max_iter, show_trace=method.show_trace, factor=10, ftol=1e-8)
+    res = nlsolve(x -> ∇action(P, x), x -> Haction(P, x), Γ0, method=method.f_name, iterations=method.max_iter, show_trace=method.show_trace, factor=10, ftol=method.tolerance)
     return res.zero, res.iterations, has_converged(res)
 end
 
 function perform_optimization(P::Problem, Γ0::Vector, method::OptimMethod)::Tuple{Vector, Int, Bool}
     method_callable = getfield(Optim, method.f_name)
     
-    options = Options(g_tol=1e-8, iterations=method.max_iter, show_trace=method.show_trace)
+    options = Options(g_tol=method.tolerance, iterations=method.max_iter, show_trace=method.show_trace)
     res = optimize(x-> action(P, x), x -> ∇action(P, x), x -> Haction(P, x), Γ0, method_callable(), options; inplace=false)
     return res.minimizer, res.iterations, has_converged(res)
 end
@@ -155,7 +155,7 @@ function find_orbits(P::Problem, method::AbstractMethod=OneMethod(BFGS()); numbe
         if result.converged && !isnan(result.action_value) && print_path
             # Print the path to a file if required
             if print_path
-                print_path_to_file(P, result.fourier_coeff, @sprintf "%s%.4f.toml" print_path_folder result.action_value)
+                print_path_to_file(P, result.fourier_coeff, starting_path, @sprintf("%s%.4f.toml",print_path_folder,result.action_value), method)
             end
             log_if(show_steps, "==> Optimization converged\n\n", color = :green, bold = true)
             push!(results, result)

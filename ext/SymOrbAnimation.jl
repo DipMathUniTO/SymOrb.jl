@@ -98,7 +98,8 @@ function SymOrb.path_animation(P::SymOrb.Problem, Γ::Vector; period=12.0, nstep
 
     # Plot the bodies. Since we are plotting Observables, this plot will be automatically updated
     # when the value of the Observable changes
-    meshscatter!(scene, bodies, color=1:N, colormap=:lightrainbow, colorrange=(1, N), markersize=0.05)
+    sizes = [0.05 * P.m[i] for i ∈ 1:N]
+    meshscatter!(scene, bodies, color=1:N, colormap=:lightrainbow, colorrange=(1, N), markersize=sizes)
 
     # Add the legend to the plot
     axislegend(scene, labelcolor=:white, labelsize=18, padding=(6.0f0, 12.0f0, 6.0f0, 6.0f0))
