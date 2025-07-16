@@ -2,15 +2,22 @@
 
 Symmetric periodic orbits in the n-body problem in Julia
 
-[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://dipmathunito.github.io/SymOrb.jl/stable/)
-[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://dipmathunito.github.io/SymOrb.jl/dev/)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://dipmathunito.github.io/SymOrb.jl/dev/)
 
 ## What
 
-`SymOrb.jl` is a Julia package provides tools for finding periodic and symmetric solutions to the gravitational $n$-body problem using a variational approach. It is a reimplementation in a unified Julia environment of the original [symorb](https://github.com/dlfer/symorb) package, which was written in Fortran and Python.
+`SymOrb.jl` is a Julia package that provides tools for finding periodic and symmetric solutions to the gravitational $n$-body problem using a variational approach. It is a modular refactoring in a unified Julia environment of the original [symorb](https://github.com/dlfer/symorb) package, which was written in Fortran and Python.
+
+## Documentation 
+
+The online documentation is available at [https://dipmathunito.github.io/SymOrb.jl/dev/](https://dipmathunito.github.io/SymOrb.jl/dev/)
+
+## Installation
+
+A full guide through the installation is available at [https://dipmathunito.github.io/SymOrb.jl/dev/installation/](https://dipmathunito.github.io/SymOrb.jl/dev/installation/)
 
 ## Quick start
-- Install `SymOrb` by typing `] add https://github.com/DipMathUniTO/SymOrb.jl`
+- Install `SymOrb` follwing the guide linked above
 - Write a configuration file `config.toml` 
 ```toml
 symmetry_name = "2d_cyclic_2"
