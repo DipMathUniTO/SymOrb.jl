@@ -1,0 +1,17 @@
+symmetry_name = "4_masses_2d_cyclic_3_different_masses"
+NOB = 4
+dim = 2
+m = [1, 2, 3, 1]
+
+# Group generators
+action_type = 0
+kern = "TrivialKerTau(2)"
+rotV = "[[-1, 0], [0, -1] ]"
+rotS = "()"
+
+# Other configs
+F = 24
+Omega = [
+    [0, 0],
+    [0, 0]
+]

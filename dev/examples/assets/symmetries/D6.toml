@@ -1,0 +1,20 @@
+symmetry_name = "D6"
+NOB = 3
+dim = 2
+m = [1, 1, 1]
+
+# Group generators
+action_type = 1
+kern = "TrivialKerTau(2)"
+rotV = "[[1, 0], [0, 1] ]"
+rotS = "(1,2,3)"
+refV = "[[-1,  0], [ 0, -1] ]"
+refS = "(2,3)"
+#denominator = "sqrt(x^2 + 0.001)"
+
+# Other configs
+F = 24
+Omega = [
+    [0, 0],
+    [0, 0]
+]

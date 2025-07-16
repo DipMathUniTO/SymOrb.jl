@@ -1,0 +1,15 @@
+symmetry_name = "dihedral_45"
+NOB = 3
+dim = 2
+m = [1, 1, 1]
+
+# Group generators
+action_type = 1
+kern = "TrivialKerTau(2)"
+rotV = "[[0, 1], [-1, 0] ]"
+rotS = "()"
+refV = "[[1, 0], [0, -1] ]"
+refS = "()"
+
+F = 24
+Omega = [[0, 0], [0, 0]]
